@@ -48,10 +48,31 @@ better.
 | FNO3D (standard objective) | 10.627 | 0.0294 | 0.9396 | 0.9521 | **0.1864** | **0.0157** | 0.0166 |
 | U-Net3D (standard objective) | 5.650 | 0.0380 | 0.8703 | 0.8613 | 0.6357 | 0.0645 | 0.0355 |
 
-The within-model training-objective ablation reduced CANO's event-macro peak
-depth error from 0.3724 m to 0.0380 m. This result uses the same 12 evaluation
-events and therefore motivates confirmation on independent events and
-additional urban domains.
+<p align="center">
+  <img src="results/generated/point_prediction_metrics.png" width="900" alt="Standard-objective point-prediction metrics">
+</p>
+
+### CANO training-objective ablation
+
+The within-model ablation compares the standard objective, a selection-matched
+control, and the peak-aware trajectory objective under the same evaluation
+conditions.
+
+| CANO objective | H RMSE | NSE | Wet RMSE | Wet NSE | Peak error | CSI .01 | CSI .10 | CSI .30 | CSI .50 | Target ACE | Target WIS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Standard objective | 0.0195 | 0.9733 | 0.0236 | 0.9716 | 0.3724 | **0.7640** | 0.8414 | 0.9029 | 0.7678 | 0.0714 | 0.0121 |
+| Selection-matched control | 0.0195 | 0.9732 | 0.0237 | 0.9714 | 0.3728 | 0.7638 | 0.8412 | 0.9027 | 0.7677 | 0.0715 | 0.0121 |
+| Peak-aware trajectory objective | **0.0164** | **0.9798** | **0.0197** | **0.9795** | **0.0380** | 0.7567 | **0.8541** | **0.9295** | **0.8261** | **0.0428** | **0.0074** |
+
+<p align="center">
+  <img src="results/generated/cano_objective_ablation.png" width="900" alt="CANO training-objective ablation">
+</p>
+
+The peak-aware trajectory objective reduced CANO's event-macro peak-depth
+error from 0.3724 m to 0.0380 m while increasing NSE and wet-domain NSE. The
+CSI .01 result illustrates that the objective does not improve every metric.
+Because the ablation uses the same 12 evaluation events, confirmation on
+independent events and additional urban domains remains necessary.
 
 The six prespecified paired comparisons are summarized below. All intervals
 exclude zero; exact values and adjusted p-values are provided in the
@@ -59,10 +80,6 @@ exclude zero; exact values and adjusted p-values are provided in the
 
 <p align="center">
   <img src="results/generated/controlled_baseline_effects.png" width="620" alt="CANO relative reductions and paired-bootstrap confidence intervals">
-</p>
-
-<p align="center">
-  <img src="results/generated/point_prediction_metrics.png" width="780" alt="Point-prediction metrics">
 </p>
 
 Additional public evidence:
