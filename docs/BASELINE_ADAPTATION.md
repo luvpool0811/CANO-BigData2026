@@ -49,3 +49,19 @@ The pinned upstream `FNO3d` class accepts a `modes3` constructor argument but
 sets its effective temporal mode count to `4`. The public configuration records
 that effective value, and the adapter rejects any conflicting value instead of
 silently reporting `12/12/8`.
+
+## Setting selection and training exposure
+
+The complete disclosure is checked in as
+`results/paper/baseline_fairness.csv` and regenerated as
+`results/generated/baseline_fairness.md`. Each system had six candidate
+settings evaluated on development data only. The selected external
+configuration was then trained from scratch for seeds 7, 31, and 42 for 100
+epochs per seed (12,900 optimizer steps per system). Candidate checkpoint
+weights were not imported, and held-out evaluation events were not used for
+setting or checkpoint selection.
+
+Measured wall time is included for transparency, but the systems do not share
+identical kernels or memory behavior, so it is not interpreted as a
+hardware-normalized efficiency comparison. The table evaluates complete
+systems and does not identify an architecture-only causal effect.

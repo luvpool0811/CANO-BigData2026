@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import hashlib
 from itertools import chain
 import json
 from pathlib import Path
@@ -38,6 +39,13 @@ class PhysicalEvent:
     @property
     def truth_h(self) -> np.ndarray:
         return self.truth.reshape(24, 3, *self.mask.shape)[:, 0]
+
+
+@dataclass(frozen=True)
+class RoleContract:
+    directory: str
+    count: int
+    public_event_aliases: tuple[str, ...]
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -111,7 +119,26 @@ def _predict_role(
             )
 
 
-def _role_contract(config: Mapping[str, Any], role: str) -> tuple[str, int]:
+def _public_aliases(row: Mapping[str, Any], role: str, count: int) -> tuple[str, ...]:
+    explicit = row.get("public_event_aliases")
+    if explicit is not None:
+        if not isinstance(explicit, Sequence) or isinstance(explicit, (str, bytes)):
+            raise ValueError(f"public event aliases for {role} must be a sequence")
+        aliases = tuple(str(value).strip() for value in explicit)
+    else:
+        prefix = str(row.get("public_event_alias_prefix", "")).strip()
+        if not prefix:
+            raise ValueError(f"role contract for {role} lacks public event aliases")
+        digits = max(2, len(str(count)))
+        aliases = tuple(f"{prefix} {index:0{digits}d}" for index in range(1, count + 1))
+    if len(aliases) != count or any(not value for value in aliases):
+        raise ValueError(f"public event aliases for {role} do not match its count")
+    if len(set(aliases)) != count:
+        raise ValueError(f"public event aliases for {role} are not unique")
+    return aliases
+
+
+def _role_contract(config: Mapping[str, Any], role: str) -> RoleContract:
     roles = config.get("roles")
     row = roles.get(role) if isinstance(roles, Mapping) else None
     if not isinstance(row, Mapping):
@@ -120,7 +147,34 @@ def _role_contract(config: Mapping[str, Any], role: str) -> tuple[str, int]:
     count = int(row.get("count", -1))
     if not directory or count < 1:
         raise ValueError(f"role contract for {role} is invalid")
-    return directory, count
+    return RoleContract(
+        directory=directory,
+        count=count,
+        public_event_aliases=_public_aliases(row, role, count),
+    )
+
+
+def validate_role_contracts(config: Mapping[str, Any]) -> dict[str, RoleContract]:
+    """Validate public role identities before any dataset file is opened."""
+
+    names = ("training", "development", "calibration", "evaluation")
+    contracts = {name: _role_contract(config, name) for name in names}
+    directories = [contract.directory for contract in contracts.values()]
+    if len(set(directories)) != len(directories):
+        raise ValueError("role directories must be pairwise distinct")
+    ownership: dict[str, str] = {}
+    for role, contract in contracts.items():
+        for alias in contract.public_event_aliases:
+            previous = ownership.setdefault(alias, role)
+            if previous != role:
+                raise ValueError(
+                    f"public event alias {alias!r} overlaps roles {previous} and {role}"
+                )
+    return contracts
+
+
+def _event_id_digest(event_id: str, *, namespace: str) -> str:
+    return hashlib.sha256(f"{namespace}|{event_id}".encode("utf-8")).hexdigest()
 
 
 def run_evidence_pipeline(
@@ -140,6 +194,7 @@ def run_evidence_pipeline(
         checkpoints, device=target_device, upstream_source=upstream_source
     )
     role_config = _load_yaml(role_config_path)
+    role_contracts = validate_role_contracts(role_config)
     calibration_config = _load_yaml(calibration_config_path)
     expected_seeds = role_config.get("ensemble_seeds")
     if expected_seeds is not None and sorted(
@@ -147,9 +202,9 @@ def run_evidence_pipeline(
     ) != sorted(seeds):
         raise ValueError("checkpoint seeds differ from the role contract")
     normalization = Normalization.load(normalization_path)
-    development_split, development_count = _role_contract(role_config, "development")
-    calibration_split, calibration_count = _role_contract(role_config, "calibration")
-    evaluation_split, evaluation_count = _role_contract(role_config, "evaluation")
+    development = role_contracts["development"]
+    calibration = role_contracts["calibration"]
+    evaluation = role_contracts["evaluation"]
     node_config = calibration_config.get("node_scale", {})
     residual_config = calibration_config.get("residual_calibration", {})
     evaluation_config = calibration_config.get("evaluation", {})
@@ -169,14 +224,24 @@ def run_evidence_pipeline(
     alpha_levels = tuple(float(value) for value in residual_config["alpha_levels"])
 
     first_mask: np.ndarray | None = None
+    observed_owner: dict[str, str] = {}
+    role_id_digests: dict[str, list[str]] = {
+        role: [] for role in ("development", "calibration", "evaluation")
+    }
+    digest_namespace = str(
+        role_config.get(
+            "event_id_digest_namespace",
+            "CANO-BigData2026/role-identity/v1",
+        )
+    )
 
-    def role_events(split: str, expected_count: int) -> Iterator[PhysicalEvent]:
+    def role_events(role: str, contract: RoleContract) -> Iterator[PhysicalEvent]:
         nonlocal first_mask
         count = 0
         for event in _predict_role(
             models,
             data_root=data_root,
-            split=split,
+            split=contract.directory,
             normalization=normalization,
             device=target_device,
             query_chunk_size=query_chunk_size,
@@ -185,16 +250,37 @@ def run_evidence_pipeline(
                 first_mask = event.mask.copy()
             elif not np.array_equal(first_mask, event.mask):
                 raise ValueError("all role events must use the same valid-cell mask")
+            previous = observed_owner.get(event.event_id)
+            if previous is not None:
+                raise ValueError(
+                    f"event identity is duplicated in role {role}"
+                    if previous == role
+                    else f"event identity overlaps roles {previous} and {role}"
+                )
+            observed_owner[event.event_id] = role
+            if count >= contract.count:
+                raise ValueError(
+                    f"role {role} contains more than {contract.count} events"
+                )
+            role_id_digests[role].append(
+                _event_id_digest(event.event_id, namespace=digest_namespace)
+            )
+            alias = contract.public_event_aliases[count]
             count += 1
-            yield event
-        if count != expected_count:
+            yield PhysicalEvent(
+                event_id=alias,
+                prediction=event.prediction,
+                truth=event.truth,
+                mask=event.mask,
+            )
+        if count != contract.count:
             raise ValueError(
-                f"role {split} has {count} events; expected {expected_count}"
+                f"role {role} has {count} events; expected {contract.count}"
             )
 
     development_pairs = (
         (event.prediction_h, event.truth_h)
-        for event in role_events(development_split, development_count)
+        for event in role_events("development", development)
     )
     try:
         first_development = next(development_pairs)
@@ -206,7 +292,7 @@ def run_evidence_pipeline(
         chain((first_development,), development_pairs), first_mask, floor_m=floor_m
     )
 
-    calibration_events = role_events(calibration_split, calibration_count)
+    calibration_events = role_events("calibration", calibration)
     calibrator = fit_target_aligned_calibrator_events(
         ((event.prediction_h, event.truth_h) for event in calibration_events),
         first_mask,
@@ -216,7 +302,7 @@ def run_evidence_pipeline(
     )
 
     event_records: list[dict[str, Any]] = []
-    for event in role_events(evaluation_split, evaluation_count):
+    for event in role_events("evaluation", evaluation):
         event_records.append(
             evaluate_event(
                 event_id=event.event_id,
@@ -245,11 +331,19 @@ def run_evidence_pipeline(
         "truth_wet_threshold_m": C.TRUTH_WET_THRESHOLD_M,
         "operational_target_threshold_m": operational_threshold,
         "role_counts": {
-            "development": development_count,
-            "calibration": calibration_count,
-            "evaluation": evaluation_count,
+            role: contract.count for role, contract in role_contracts.items()
         },
-        "evaluation_target_reads": evaluation_count,
+        "role_identity": {
+            "digest_algorithm": "sha256",
+            "digest_namespace": digest_namespace,
+            "pairwise_disjoint_observed_roles": True,
+            "event_id_digests": role_id_digests,
+            "public_event_aliases": {
+                role: list(contract.public_event_aliases)
+                for role, contract in role_contracts.items()
+            },
+        },
+        "evaluation_target_reads": evaluation.count,
         "point_prediction_event_macro": point,
         "target_aligned_event_macro": target_macro,
         "events": event_records,
@@ -299,4 +393,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-__all__ = ["PhysicalEvent", "run_evidence_pipeline", "main"]
+__all__ = [
+    "PhysicalEvent",
+    "RoleContract",
+    "run_evidence_pipeline",
+    "validate_role_contracts",
+    "main",
+]

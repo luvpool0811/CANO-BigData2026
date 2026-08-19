@@ -1,0 +1,32 @@
+scope:
+  status: aggregate_reproduction_only
+  confirmatory: false
+  reason: objective motivated by errors observed on the same 12-event evaluation set
+  public_training_cli_support: false
+model:
+  name: cano
+  latent_dim: 64
+  branch_depth: 4
+  forcing_hidden_dim: 64
+  decoder_hidden_dim: 192
+  n_freqs_xy: 8
+  n_freqs_z: 4
+  n_freqs_t: 4
+  dropout: 0.0
+training:
+  seeds: [7, 31, 42]
+  base_objective: normalized H/U/V mean-squared error
+  base_queries_per_event: 4096
+  peak_trajectory_weight: 0.10
+  peak_trajectory_loss: weighted Huber
+  peak_coordinates: anchor union plus upper-tail points
+  peak_leads: 24
+  selection_role: development
+  evaluation_role: evaluation
+reporting:
+  source: results/paper/main_results.csv
+  rows:
+    - CANO (standard objective)
+    - CANO (selection-matched control)
+    - CANO (peak-aware objective)
+  interpretation: non-confirmatory within-model follow-up

@@ -1,28 +1,20 @@
 dataset: UrbanFloodCast Berlin I
 ensemble_seeds: [7, 31, 42]
+event_id_digest_namespace: CANO-BigData2026/UrbanFloodCast-BerlinI/v1
 roles:
   training:
     directory: train
     count: 85
+    public_event_alias_prefix: Train event
   development:
     directory: validation
     count: 15
+    public_event_alias_prefix: Development event
   calibration:
     directory: calibration
     count: 13
+    public_event_alias_prefix: Calibration event
   evaluation:
     directory: test
     count: 12
-    public_event_aliases:
-      - Event 01
-      - Event 02
-      - Event 03
-      - Event 04
-      - Event 05
-      - Event 06
-      - Event 07
-      - Event 08
-      - Event 09
-      - Event 10
-      - Event 11
-      - Event 12
+    public_event_alias_prefix: Evaluation event

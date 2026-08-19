@@ -2,8 +2,11 @@
 
 [English](README.md)
 
-CANO는 도시 침수 물리장 예측을 위한 좌표질의 신경 연산자입니다. 이
-저장소는 IEEE BigData 2026 투고 논문의 재현성을 지원하기 위해 다음을
+CANO는 도시 침수 물리장 예측을 위한 좌표질의 신경 연산자입니다. 논문의
+1차 기여는 운영대상 명세, 사건 단위 검정, 진단 기반 대응, 증거 경계를 잇는
+운영대상 신뢰도 절차입니다. CANO 비교는 이를 뒷받침하는 예측기 증거이며,
+목적함수 절제실험은 비확증적 후속 분석입니다. 이 저장소는 IEEE BigData
+2026 투고 논문의 재현성을 지원하기 위해 다음을
 공개합니다.
 
 - CANO 모델과 논문에서 사용한 설정
@@ -11,6 +14,7 @@ CANO는 도시 침수 물리장 예측을 위한 좌표질의 신경 연산자�
 - 노드 정규화 운영대상 정렬 보정과 사건 단위 evidence API
 - 원 저자 DNO-3·FNO3D·U-Net3D 코드용 adapter
 - 논문 표의 집계 결과와 익명화한 사건별 결과
+- 핵심 운영 신뢰도, 통계, baseline 공정성 공개표
 - 표와 그래프를 다시 만드는 간단한 명령어
 
 데이터셋, 체크포인트, 대용량 예측 배열은 포함하지 않습니다.
@@ -25,13 +29,33 @@ conda activate cano-bigdata2026
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
+python scripts/reproduce_operational_evidence.py
 ```
 
 첫 명령은 합성 입력을 이용한 소규모 최적화 smoke test이며, 두 번째 명령은
 `results/generated/`에 결과표와 그래프 네 개를 다시 만듭니다. 세 번째 명령은
 6개 사전지정 사건쌍 비교의 효과크기, bootstrap 신뢰구간, exact sign-flip
-p-value와 Holm 보정 p-value를 재현합니다. 세 명령 모두 데이터 다운로드나
+p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 운영대상
+contrast, target calibration, 주장-근거, baseline 공정성 표와 중심 효과 그림을
+재생성합니다. 모든 명령은 데이터 다운로드나
 GPU를 요구하지 않습니다.
+
+## 핵심 운영 신뢰도 근거
+
+<p align="center">
+  <img src="results/generated/operational_reliability_effects.png" width="900" alt="운영대상 population 및 calibration-axis 효과">
+</p>
+
+- `results/paper/operational_contrasts.csv`: UFB, UFC Berlin I/II, WB2의
+  population 및 calibration-axis 효과
+- `results/paper/target_calibration.csv`: 논문 Table I의 4개 설정
+- `results/paper/claim_evidence.csv`: 주장별 추정대상, 독립 단위, 재표집,
+  calibrator 처리, 다중검정, 사전지정 여부, 해석 경계
+- `results/paper/baseline_fairness.csv`: 후보 설정, 개발자료 선택 규칙, seed,
+  학습 노출, checkpoint 선택
+
+세부 통계 가정과 WIS 신뢰구간의 조건부 해석은
+[`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md)에 정리했습니다.
 
 ## 데이터
 
@@ -97,6 +121,9 @@ python scripts/run_evidence_pipeline.py \
 이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
 노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
 평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
+실행 전 125개 공개 alias의 역할 간 중복을 검사하고, 실행 중 개발·보정·평가
+event ID 중복을 즉시 거부합니다. 산출물에는 실제 ID 대신 공개 alias와
+namespace가 적용된 SHA-256 digest를 기록합니다.
 
 ## 공개 결과
 
@@ -116,7 +143,7 @@ WIS는 낮을수록 좋고, NSE·침수영역 NSE·CSI는 높을수록 좋습니
   <img src="results/generated/point_prediction_metrics.png" width="900" alt="표준 목적함수 점예측 성능">
 </p>
 
-### CANO 학습 목적함수 절제실험
+### 비확증적 CANO 학습 목적함수 후속 분석
 
 동일한 평가 조건에서 표준 목적함수, 선택조건 일치 대조군, 극대수심 궤적
 목적함수를 비교합니다.
@@ -135,6 +162,9 @@ WIS는 낮을수록 좋고, NSE·침수영역 NSE·CSI는 높을수록 좋습니
 0.0380 m로 줄이고 NSE와 침수영역 NSE를 높였습니다. 반면 CSI .01은 모든
 지표가 함께 개선된 것은 아님을 보여줍니다. 같은 평가 사건 12개를 사용한
 절제실험이므로 독립 사건과 추가 도시 영역에서의 확인이 필요합니다.
+공개 가능한 목적함수와 해석 범위는
+`configs/cano/peak_aware_followup.yaml`에 명시했습니다. 공개 학습 CLI는 표준
+목적함수만 지원하며 이 사후 동기 후속 분석의 종단간 재현을 주장하지 않습니다.
 
 - `results/paper/main_results.csv`: 6개 비교행과 12개 지표
 - `results/paper/event_level_results.csv`: 12개 평가 사건의 익명화 결과
@@ -157,10 +187,11 @@ p-value는 [사건쌍 추론표](results/generated/paired_inference.md)에 제�
 ## 짧은 검증
 
 ```bash
-pytest -q
+python -m pytest -q
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
+python scripts/reproduce_operational_evidence.py
 ```
 
 검증은 모델 크기, adapter 텐서 변환, 지표 계산, CLI 및 공개 결과 재생성을

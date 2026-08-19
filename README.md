@@ -3,13 +3,20 @@
 [한국어 안내](README.ko.md)
 
 CANO is a coordinate-query neural operator for urban flood field prediction.
-This repository accompanies our IEEE BigData 2026 submission and provides:
+The paper's primary contribution is an operational-target reliability protocol:
+prespecify the decision population, test it at the event level, respond to the
+diagnosed gap, and state the evidence boundary. The CANO comparison is
+supporting predictor evidence, and the objective ablation is a
+non-confirmatory follow-up. This repository accompanies our IEEE BigData 2026
+submission and provides:
 
 - the CANO architecture and its reported configuration;
 - a common training and evaluation interface;
 - node-normalized target-aligned calibration and event-level evidence APIs;
 - adapters to the authors' public DNO-3, FNO3D, and U-Net3D implementations;
-- aggregate and event-level results used in the paper; and
+- aggregate and event-level results used in the paper;
+- central operational-reliability, statistical, and baseline-fairness
+  disclosures; and
 - scripts that rebuild the result tables and figures without accessing the
   original evaluation arrays.
 
@@ -26,13 +33,43 @@ conda activate cano-bigdata2026
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
+python scripts/reproduce_operational_evidence.py
 ```
 
 The first command runs a small synthetic optimization smoke test. The second
 rebuilds the public result table and four figures under `results/generated/`.
 The third reproduces the six prespecified paired-event comparisons, including
 bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
+The fourth rebuilds the operational-contrast, target-calibration,
+claim-to-evidence, and baseline-fairness tables plus a central-effect figure.
 None of these commands downloads a dataset or requires a GPU.
+
+## Primary operational-reliability evidence
+
+The central population and calibration-axis contrasts are checked in as small
+reporting-unit summaries. They cover UFB California and Tennessee development,
+the prespecified UFC Berlin I evaluation, its three-initialization extension,
+the Berlin II deployment boundary, and the prespecified WeatherBench 2
+cross-domain test.
+
+<p align="center">
+  <img src="results/generated/operational_reliability_effects.png" width="900" alt="Operational population and calibration-axis effects">
+</p>
+
+- [`operational_contrasts.csv`](results/paper/operational_contrasts.csv) is the
+  source for the plot and the regenerated Fig. 2-style effect table.
+- [`target_calibration.csv`](results/paper/target_calibration.csv) reproduces
+  the four Table I setting profiles.
+- [`claim_evidence.csv`](results/paper/claim_evidence.csv) states the estimand,
+  unit, resampling, calibrator treatment, multiplicity family,
+  prespecification status, and boundary for every principal claim.
+- [`baseline_fairness.csv`](results/paper/baseline_fairness.csv) discloses
+  candidate counts, development-only setting selection, seeds, training
+  exposure, and checkpoint selection.
+
+See [`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md) for the
+sign-flip assumptions, separate Holm families, and the conditional
+interpretation of the WIS bootstrap intervals.
 
 ## Reported results
 
@@ -52,9 +89,9 @@ better.
   <img src="results/generated/point_prediction_metrics.png" width="900" alt="Standard-objective point-prediction metrics">
 </p>
 
-### CANO training-objective ablation
+### Non-confirmatory CANO training-objective follow-up
 
-The within-model ablation compares the standard objective, a selection-matched
+The within-model follow-up compares the standard objective, a selection-matched
 control, and the peak-aware trajectory objective under the same evaluation
 conditions.
 
@@ -73,6 +110,11 @@ error from 0.3724 m to 0.0380 m while increasing NSE and wet-domain NSE. The
 CSI .01 result illustrates that the objective does not improve every metric.
 Because the ablation uses the same 12 evaluation events, confirmation on
 independent events and additional urban domains remains necessary.
+The aggregate reproduction scope and objective specification are recorded in
+[`configs/cano/peak_aware_followup.yaml`](configs/cano/peak_aware_followup.yaml).
+The compact public training CLI intentionally supports only the standard
+objective; it does not claim end-to-end reproduction of this post-evaluation
+follow-up.
 
 The six prespecified paired comparisons are summarized below. All intervals
 exclude zero; exact values and adjusted p-values are provided in the
@@ -159,7 +201,11 @@ python scripts/run_evidence_pipeline.py \
 This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
-85 training events. Dataset files remain provider-managed and are not bundled.
+85 training events. Before data access, it validates 125 unique public role
+aliases. During execution it rejects duplicate event identities within or
+across development, calibration, and evaluation roles and records only public
+aliases plus namespaced SHA-256 event-ID digests in the evidence output.
+Dataset files remain provider-managed and are not bundled.
 
 ## Run an external baseline
 
@@ -183,7 +229,8 @@ Replace the configuration with `fno3d.yaml` or `unet3d.yaml` for the other
 models. The adapter verifies the upstream revision, preserves the authors'
 architecture classes, and maps all models to the same 31-channel input and
 72-channel output contract. See
-[`docs/BASELINE_ADAPTATION.md`](docs/BASELINE_ADAPTATION.md).
+[`docs/BASELINE_ADAPTATION.md`](docs/BASELINE_ADAPTATION.md) and the regenerated
+[`baseline fairness table`](results/generated/baseline_fairness.md).
 
 ## Repository layout
 
@@ -202,14 +249,16 @@ tests/                    fast unit and integration tests
 The lightweight release check is deliberately short:
 
 ```bash
-pytest -q
+python -m pytest -q
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
+python scripts/reproduce_operational_evidence.py
 ```
 
 It checks model dimensions, the exact CANO parameter count, adapter tensor
-mapping, metric calculations, paired inference, the complete three-checkpoint
+mapping, metric calculations, paired inference, role identity separation,
+operational disclosure regeneration, the complete three-checkpoint
 evidence workflow on synthetic data, CLI behavior, and regeneration of the
 public results. It does not rerun expensive training or open bulk evaluation
 arrays.
