@@ -1,0 +1,19 @@
+model:
+  name: cano
+  latent_dim: 16
+  branch_depth: 1
+  forcing_hidden_dim: 16
+  decoder_hidden_dim: 32
+  n_freqs_xy: 3
+  n_freqs_z: 2
+  n_freqs_t: 2
+  dropout: 0.0
+training:
+  seed: 42
+  steps: 3
+  learning_rate: 0.001
+  queries_per_event: 64
+data:
+  events: 4
+  height: 12
+  width: 16

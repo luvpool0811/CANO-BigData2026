@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the CANO paper and this repository."
+title: "CANO-BigData2026: Code and reproducibility package"
+type: software
+authors:
+  - name: "CANO Authors"
+repository-code: "https://github.com/luvpool0811/CANO-BigData2026"
+license: MIT
+version: 1.0.0
+date-released: 2026-08-19

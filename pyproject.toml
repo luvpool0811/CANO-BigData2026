@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cano-bigdata2026"
+version = "1.0.0"
+description = "CANO and fair UrbanFloodCast baseline adapters for operational-target reliability evaluation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+  "numpy>=1.24",
+  "torch>=2.0",
+  "PyYAML>=6.0",
+  "matplotlib>=3.7",
+  "scipy>=1.10",
+]
+
+[project.scripts]
+cano-quickstart = "cano_bigdata2026.cli:quickstart_main"
+cano-train = "cano_bigdata2026.cli:train_main"
+cano-evaluate = "cano_bigdata2026.cli:evaluate_main"
+cano-reproduce-results = "cano_bigdata2026.results:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

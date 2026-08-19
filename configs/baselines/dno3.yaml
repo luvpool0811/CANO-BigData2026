@@ -1,0 +1,19 @@
+model:
+  name: dno3
+  width: 11
+  factor: 1
+  include_roughness: true
+training:
+  seeds: [7, 31, 42]
+  max_epochs: 100
+  patience: 50
+  micro_batch_size: 1
+  gradient_accumulation_steps: 2
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+data:
+  input_channels: 31
+  output_channels: 72
+  forecast_leads: 24
+  output_variables: [H, U, V]

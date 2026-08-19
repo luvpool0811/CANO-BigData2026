@@ -1,0 +1,11 @@
+node_scale:
+  fit_split: inner_select
+  floor_m: 0.001
+residual_calibration:
+  fit_split: calibration
+  operational_threshold_m: 0.30
+  event_balanced: true
+  alpha_levels: [0.50, 0.20, 0.10]
+evaluation:
+  event_macro_aggregation: true
+  target_used_for_population_selection: false

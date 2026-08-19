@@ -1,0 +1,26 @@
+model:
+  name: cano
+  latent_dim: 64
+  branch_depth: 4
+  forcing_hidden_dim: 64
+  decoder_hidden_dim: 192
+  n_freqs_xy: 8
+  n_freqs_z: 4
+  n_freqs_t: 4
+  dropout: 0.0
+training:
+  seeds: [7, 31, 42]
+  max_epochs: 100
+  patience: 50
+  micro_batch_size: 1
+  gradient_accumulation_steps: 2
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+  queries_per_event: 4096
+  validation_query_chunk: 32768
+data:
+  input_channels: 31
+  output_channels: 72
+  forecast_leads: 24
+  output_variables: [H, U, V]
