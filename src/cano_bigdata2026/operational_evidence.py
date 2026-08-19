@@ -17,12 +17,79 @@ import matplotlib.pyplot as plt
 
 EXPECTED_ROWS = {
     "operational_contrasts.csv": 6,
+    "operational_evaluation_specification.csv": 1,
     "target_calibration.csv": 4,
     "claim_evidence.csv": 11,
     "baseline_fairness.csv": 4,
     "hpo_candidates.csv": 24,
     "reproducibility_scope.csv": 7,
 }
+
+
+def _validate_rq1_specification(
+    payload: Mapping[str, list[dict[str, str]]],
+) -> None:
+    """Bind the reader-facing RQ1 contract to the reported contrast."""
+
+    spec = payload["operational_evaluation_specification.csv"][0]
+    contrast = next(
+        row
+        for row in payload["operational_contrasts.csv"]
+        if row["benchmark"] == "UrbanFloodCast" and row["setting"] == "Berlin I"
+    )
+    claim = next(
+        row
+        for row in payload["claim_evidence.csv"]
+        if row["claim_id"] == "RQ1-UFC-BerlinI"
+    )
+    exact_text = {
+        "claim_id": "RQ1-UFC-BerlinI",
+        "point_predictor": "forcing-aware DNO",
+        "predictor_initialization": "seed 42",
+        "reference_population": "all valid cell-times across 24 forecast leads",
+        "operational_population": (
+            "prediction-selected cell-times with predicted H >= 0.30 m"
+        ),
+        "selection_information": (
+            "prediction only; target residuals and interval endpoints do not "
+            "define membership"
+        ),
+        "interval_rule": "two-sided global absolute-residual band [mu-q, mu+q]",
+        "nonconformity_score": "absolute H residual |y-mu| in physical metres",
+        "calibration_weighting": "pooled valid cell-times with one global q",
+        "reporting_unit": "rainfall event",
+        "coverage_aggregation": (
+            "equal event-macro mean after within-event cell-time coverage"
+        ),
+        "estimand": "full-field minus prediction-selected coverage",
+    }
+    for key, expected in exact_text.items():
+        if spec[key] != expected:
+            raise ValueError(f"RQ1 specification changed: {key}")
+    numeric_links = {
+        "full_coverage": "full_coverage",
+        "selected_coverage": "selected_coverage",
+        "population_effect": "population_effect",
+        "population_ci_lower": "population_ci_lower",
+        "population_ci_upper": "population_ci_upper",
+    }
+    for spec_key, contrast_key in numeric_links.items():
+        if abs(_finite(spec, spec_key) - _finite(contrast, contrast_key)) > 1e-15:
+            raise ValueError(f"RQ1 specification differs from contrast: {spec_key}")
+    if (
+        _finite(spec, "operational_threshold_m") != 0.30
+        or _finite(spec, "miscoverage_alpha") != 0.10
+        or int(spec["bootstrap_replicates"]) != int(contrast["bootstrap_replicates"])
+        or int(spec["bootstrap_seed"]) != 20260731
+        or spec["calibrator_refit_in_bootstrap"].lower() != "false"
+        or contrast["calibrator_refit"].lower() != "no"
+        or spec["resampling"]
+        != "paired rainfall-event bootstrap on the 12 within-event contrasts"
+        or "paired event bootstrap" not in claim["resampling"]
+        or claim["independent_unit"] != "rainfall event"
+        or "fixed fitted calibrator" not in claim["calibrator_treatment"]
+    ):
+        raise ValueError("RQ1 resampling or calibration contract changed")
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -121,6 +188,7 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         for row in scope_rows
     ):
         raise ValueError("reproducibility scope booleans are invalid")
+    _validate_rq1_specification(payload)
     return payload
 
 
@@ -174,6 +242,21 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
     payload = validate_operational_inputs(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     tables = {
+        "operational_evaluation_specification.md": (
+            "operational_evaluation_specification.csv",
+            (
+                ("claim_id", "Claim"),
+                ("point_predictor", "Predictor"),
+                ("prediction_archive", "Prediction archive"),
+                ("operational_population", "Operational population"),
+                ("interval_rule", "Interval rule"),
+                ("calibration_role", "Calibration role"),
+                ("evaluation_role", "Evaluation role"),
+                ("reporting_unit", "Unit"),
+                ("resampling", "Uncertainty"),
+                ("claim_boundary", "Boundary"),
+            ),
+        ),
         "operational_contrasts.md": (
             "operational_contrasts.csv",
             (("setting", "Setting"), ("evidence_role", "Role"), ("n_units", "n"), ("population_effect", "Population effect"), ("axis_effect", "Axis effect"), ("resampling", "Resampling")),
@@ -210,6 +293,9 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
     return {
         "status": "PASS",
         "operational_rows": len(payload["operational_contrasts.csv"]),
+        "operational_specification_rows": len(
+            payload["operational_evaluation_specification.csv"]
+        ),
         "target_calibration_rows": len(payload["target_calibration.csv"]),
         "claim_rows": len(payload["claim_evidence.csv"]),
         "fairness_rows": len(payload["baseline_fairness.csv"]),

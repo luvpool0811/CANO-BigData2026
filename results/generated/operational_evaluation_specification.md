@@ -1,0 +1,3 @@
+| Claim | Predictor | Prediction archive | Operational population | Interval rule | Calibration role | Evaluation role | Unit | Uncertainty | Boundary |
+|---|---|---|---|---|---|---|---|---|---|
+| RQ1-UFC-BerlinI | forcing-aware DNO | fixed seed-42 calibration/test H-prediction archive; field mu_h_aware | prediction-selected cell-times with predicted H >= 0.30 m | two-sided global absolute-residual band [mu-q, mu+q] | provider Valid / public calibration | provider Test / public evaluation | rainfall event | paired rainfall-event bootstrap on the 12 within-event contrasts | empirical external comparison conditional on the fixed seed-42 predictor and calibration archive; not an event-conditional coverage guarantee |

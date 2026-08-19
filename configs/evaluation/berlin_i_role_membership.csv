@@ -1,126 +1,126 @@
-role,directory,ordinal,public_event_alias
-training,train,1,Train event 01
-training,train,2,Train event 02
-training,train,3,Train event 03
-training,train,4,Train event 04
-training,train,5,Train event 05
-training,train,6,Train event 06
-training,train,7,Train event 07
-training,train,8,Train event 08
-training,train,9,Train event 09
-training,train,10,Train event 10
-training,train,11,Train event 11
-training,train,12,Train event 12
-training,train,13,Train event 13
-training,train,14,Train event 14
-training,train,15,Train event 15
-training,train,16,Train event 16
-training,train,17,Train event 17
-training,train,18,Train event 18
-training,train,19,Train event 19
-training,train,20,Train event 20
-training,train,21,Train event 21
-training,train,22,Train event 22
-training,train,23,Train event 23
-training,train,24,Train event 24
-training,train,25,Train event 25
-training,train,26,Train event 26
-training,train,27,Train event 27
-training,train,28,Train event 28
-training,train,29,Train event 29
-training,train,30,Train event 30
-training,train,31,Train event 31
-training,train,32,Train event 32
-training,train,33,Train event 33
-training,train,34,Train event 34
-training,train,35,Train event 35
-training,train,36,Train event 36
-training,train,37,Train event 37
-training,train,38,Train event 38
-training,train,39,Train event 39
-training,train,40,Train event 40
-training,train,41,Train event 41
-training,train,42,Train event 42
-training,train,43,Train event 43
-training,train,44,Train event 44
-training,train,45,Train event 45
-training,train,46,Train event 46
-training,train,47,Train event 47
-training,train,48,Train event 48
-training,train,49,Train event 49
-training,train,50,Train event 50
-training,train,51,Train event 51
-training,train,52,Train event 52
-training,train,53,Train event 53
-training,train,54,Train event 54
-training,train,55,Train event 55
-training,train,56,Train event 56
-training,train,57,Train event 57
-training,train,58,Train event 58
-training,train,59,Train event 59
-training,train,60,Train event 60
-training,train,61,Train event 61
-training,train,62,Train event 62
-training,train,63,Train event 63
-training,train,64,Train event 64
-training,train,65,Train event 65
-training,train,66,Train event 66
-training,train,67,Train event 67
-training,train,68,Train event 68
-training,train,69,Train event 69
-training,train,70,Train event 70
-training,train,71,Train event 71
-training,train,72,Train event 72
-training,train,73,Train event 73
-training,train,74,Train event 74
-training,train,75,Train event 75
-training,train,76,Train event 76
-training,train,77,Train event 77
-training,train,78,Train event 78
-training,train,79,Train event 79
-training,train,80,Train event 80
-training,train,81,Train event 81
-training,train,82,Train event 82
-training,train,83,Train event 83
-training,train,84,Train event 84
-training,train,85,Train event 85
-development,validation,1,Development event 01
-development,validation,2,Development event 02
-development,validation,3,Development event 03
-development,validation,4,Development event 04
-development,validation,5,Development event 05
-development,validation,6,Development event 06
-development,validation,7,Development event 07
-development,validation,8,Development event 08
-development,validation,9,Development event 09
-development,validation,10,Development event 10
-development,validation,11,Development event 11
-development,validation,12,Development event 12
-development,validation,13,Development event 13
-development,validation,14,Development event 14
-development,validation,15,Development event 15
-calibration,calibration,1,Calibration event 01
-calibration,calibration,2,Calibration event 02
-calibration,calibration,3,Calibration event 03
-calibration,calibration,4,Calibration event 04
-calibration,calibration,5,Calibration event 05
-calibration,calibration,6,Calibration event 06
-calibration,calibration,7,Calibration event 07
-calibration,calibration,8,Calibration event 08
-calibration,calibration,9,Calibration event 09
-calibration,calibration,10,Calibration event 10
-calibration,calibration,11,Calibration event 11
-calibration,calibration,12,Calibration event 12
-calibration,calibration,13,Calibration event 13
-evaluation,test,1,Evaluation event 01
-evaluation,test,2,Evaluation event 02
-evaluation,test,3,Evaluation event 03
-evaluation,test,4,Evaluation event 04
-evaluation,test,5,Evaluation event 05
-evaluation,test,6,Evaluation event 06
-evaluation,test,7,Evaluation event 07
-evaluation,test,8,Evaluation event 08
-evaluation,test,9,Evaluation event 09
-evaluation,test,10,Evaluation event 10
-evaluation,test,11,Evaluation event 11
-evaluation,test,12,Evaluation event 12
+role,directory,ordinal,public_event_alias,provider_split,provider_event_name,provider_relative_path
+training,train,1,Train event 01,Train,EulerII_30y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_30y_1h/
+training,train,2,Train event 02,Train,Rand_20y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_20y_1h/
+training,train,3,Train event 03,Train,EulerI_65mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_65mm_1h/
+training,train,4,Train event 04,Train,Rand_130mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_130mm_1h/
+training,train,5,Train event 05,Train,Block_85mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_85mm_1h/
+training,train,6,Train event 06,Train,Rand_70mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_70mm_1h/
+training,train,7,Train event 07,Train,EulerII_60mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_60mm_1h/
+training,train,8,Train event 08,Train,EulerII_115mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_115mm_1h/
+training,train,9,Train event 09,Train,EulerII_20y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_20y_1h/
+training,train,10,Train event 10,Train,EulerII_90mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_90mm_1h/
+training,train,11,Train event 11,Train,Rand_100y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_100y_1h/
+training,train,12,Train event 12,Train,Rand_120mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_120mm_1h/
+training,train,13,Train event 13,Train,EulerII_100mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_100mm_1h/
+training,train,14,Train event 14,Train,EulerI_110mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_110mm_1h/
+training,train,15,Train event 15,Train,EulerII_50y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_50y_1h/
+training,train,16,Train event 16,Train,Rand_65mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_65mm_1h/
+training,train,17,Train event 17,Train,Block_80mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_80mm_1h/
+training,train,18,Train event 18,Train,Block_55mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_55mm_1h/
+training,train,19,Train event 19,Train,EulerI_135mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_135mm_1h/
+training,train,20,Train event 20,Train,Block_20y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_20y_1h/
+training,train,21,Train event 21,Train,Block_125mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_125mm_1h/
+training,train,22,Train event 22,Train,Block_145mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_145mm_1h/
+training,train,23,Train event 23,Train,Rand_115mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_115mm_1h/
+training,train,24,Train event 24,Train,EulerII_130mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_130mm_1h/
+training,train,25,Train event 25,Train,Block_105mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_105mm_1h/
+training,train,26,Train event 26,Train,Block_150mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_150mm_1h/
+training,train,27,Train event 27,Train,EulerI_80mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_80mm_1h/
+training,train,28,Train event 28,Train,EulerII_100y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_100y_1h/
+training,train,29,Train event 29,Train,EulerII_80mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_80mm_1h/
+training,train,30,Train event 30,Train,Block_130mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_130mm_1h/
+training,train,31,Train event 31,Train,EulerII_10y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_10y_1h/
+training,train,32,Train event 32,Train,Rand_50y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_50y_1h/
+training,train,33,Train event 33,Train,EulerI_70mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_70mm_1h/
+training,train,34,Train event 34,Train,Block_110mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_110mm_1h/
+training,train,35,Train event 35,Train,Block_60mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_60mm_1h/
+training,train,36,Train event 36,Train,Rand_140mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_140mm_1h/
+training,train,37,Train event 37,Train,EulerII_105mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_105mm_1h/
+training,train,38,Train event 38,Train,Block_90mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_90mm_1h/
+training,train,39,Train event 39,Train,Rand_75mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_75mm_1h/
+training,train,40,Train event 40,Train,Block_115mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_115mm_1h/
+training,train,41,Train event 41,Train,Rand_30y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_30y_1h/
+training,train,42,Train event 42,Train,EulerI_30y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_30y_1h/
+training,train,43,Train event 43,Train,Block_50y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_50y_1h/
+training,train,44,Train event 44,Train,EulerI_10y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_10y_1h/
+training,train,45,Train event 45,Train,EulerI_100y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_100y_1h/
+training,train,46,Train event 46,Train,EulerII_65mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_65mm_1h/
+training,train,47,Train event 47,Train,EulerI_125mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_125mm_1h/
+training,train,48,Train event 48,Train,Rand_110mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_110mm_1h/
+training,train,49,Train event 49,Train,EulerI_115mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_115mm_1h/
+training,train,50,Train event 50,Train,Rand_10y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_10y_1h/
+training,train,51,Train event 51,Train,Rand_145mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_145mm_1h/
+training,train,52,Train event 52,Train,Rand_150mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_150mm_1h/
+training,train,53,Train event 53,Train,Block_100mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_100mm_1h/
+training,train,54,Train event 54,Train,Rand_95mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_95mm_1h/
+training,train,55,Train event 55,Train,Rand_90mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_90mm_1h/
+training,train,56,Train event 56,Train,Block_120mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_120mm_1h/
+training,train,57,Train event 57,Train,EulerI_100mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_100mm_1h/
+training,train,58,Train event 58,Train,EulerII_75mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_75mm_1h/
+training,train,59,Train event 59,Train,EulerII_110mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_110mm_1h/
+training,train,60,Train event 60,Train,EulerI_20y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_20y_1h/
+training,train,61,Train event 61,Train,EulerI_130mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_130mm_1h/
+training,train,62,Train event 62,Train,Block_75mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_75mm_1h/
+training,train,63,Train event 63,Train,EulerI_95mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_95mm_1h/
+training,train,64,Train event 64,Train,Block_30y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_30y_1h/
+training,train,65,Train event 65,Train,EulerII_150mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_150mm_1h/
+training,train,66,Train event 66,Train,EulerII_85mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_85mm_1h/
+training,train,67,Train event 67,Train,EulerII_140mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_140mm_1h/
+training,train,68,Train event 68,Train,EulerI_90mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_90mm_1h/
+training,train,69,Train event 69,Train,EulerI_140mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_140mm_1h/
+training,train,70,Train event 70,Train,Block_70mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_70mm_1h/
+training,train,71,Train event 71,Train,EulerI_145mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_145mm_1h/
+training,train,72,Train event 72,Train,Rand_60mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_60mm_1h/
+training,train,73,Train event 73,Train,EulerI_50y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_50y_1h/
+training,train,74,Train event 74,Train,Rand_85mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_85mm_1h/
+training,train,75,Train event 75,Train,EulerII_145mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_145mm_1h/
+training,train,76,Train event 76,Train,Block_135mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_135mm_1h/
+training,train,77,Train event 77,Train,Rand_125mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_125mm_1h/
+training,train,78,Train event 78,Train,EulerI_120mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_120mm_1h/
+training,train,79,Train event 79,Train,EulerII_95mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_95mm_1h/
+training,train,80,Train event 80,Train,EulerI_85mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_85mm_1h/
+training,train,81,Train event 81,Train,Block_95mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_95mm_1h/
+training,train,82,Train event 82,Train,EulerI_60mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_60mm_1h/
+training,train,83,Train event 83,Train,Rand_105mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_105mm_1h/
+training,train,84,Train event 84,Train,EulerII_125mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_125mm_1h/
+training,train,85,Train event 85,Train,Block_100y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_100y_1h/
+development,validation,1,Development event 01,Train,EulerII_120mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_120mm_1h/
+development,validation,2,Development event 02,Train,Block_65mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_65mm_1h/
+development,validation,3,Development event 03,Train,EulerI_105mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_105mm_1h/
+development,validation,4,Development event 04,Train,Block_10y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_10y_1h/
+development,validation,5,Development event 05,Train,EulerI_150mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_150mm_1h/
+development,validation,6,Development event 06,Train,EulerI_55mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_55mm_1h/
+development,validation,7,Development event 07,Train,EulerII_70mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_70mm_1h/
+development,validation,8,Development event 08,Train,Rand_55mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_55mm_1h/
+development,validation,9,Development event 09,Train,Block_140mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Block_140mm_1h/
+development,validation,10,Development event 10,Train,Rand_100mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_100mm_1h/
+development,validation,11,Development event 11,Train,EulerII_55mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_55mm_1h/
+development,validation,12,Development event 12,Train,EulerI_75mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerI_75mm_1h/
+development,validation,13,Development event 13,Train,Rand_135mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_135mm_1h/
+development,validation,14,Development event 14,Train,Rand_80mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/Rand_80mm_1h/
+development,validation,15,Development event 15,Train,EulerII_135mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_135mm_1h/
+calibration,calibration,1,Calibration event 01,Valid,EulerIII_110mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_110mm_1h/
+calibration,calibration,2,Calibration event 02,Valid,EulerIII_145mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_145mm_1h/
+calibration,calibration,3,Calibration event 03,Valid,EulerIII_55mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_55mm_1h/
+calibration,calibration,4,Calibration event 04,Valid,EulerIII_95mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_95mm_1h/
+calibration,calibration,5,Calibration event 05,Valid,EulerIII_100y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_100y_1h/
+calibration,calibration,6,Calibration event 06,Valid,EulerIII_115mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_115mm_1h/
+calibration,calibration,7,Calibration event 07,Valid,EulerIII_65mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_65mm_1h/
+calibration,calibration,8,Calibration event 08,Valid,EulerIII_75mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_75mm_1h/
+calibration,calibration,9,Calibration event 09,Valid,EulerIII_125mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_125mm_1h/
+calibration,calibration,10,Calibration event 10,Valid,EulerIII_85mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_85mm_1h/
+calibration,calibration,11,Calibration event 11,Valid,EulerIII_135mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_135mm_1h/
+calibration,calibration,12,Calibration event 12,Valid,EulerIII_50y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_50y_1h/
+calibration,calibration,13,Calibration event 13,Valid,EulerIII_20y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Valid/EulerIII_20y_1h/
+evaluation,test,1,Evaluation event 01,Test,EulerIII_10y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_10y_1h/
+evaluation,test,2,Evaluation event 02,Test,EulerIII_140mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_140mm_1h/
+evaluation,test,3,Evaluation event 03,Test,EulerIII_105mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_105mm_1h/
+evaluation,test,4,Evaluation event 04,Test,EulerIII_120mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_120mm_1h/
+evaluation,test,5,Evaluation event 05,Test,EulerIII_70mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_70mm_1h/
+evaluation,test,6,Evaluation event 06,Test,EulerIII_80mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_80mm_1h/
+evaluation,test,7,Evaluation event 07,Test,EulerIII_150mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_150mm_1h/
+evaluation,test,8,Evaluation event 08,Test,EulerIII_100mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_100mm_1h/
+evaluation,test,9,Evaluation event 09,Test,EulerIII_60mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_60mm_1h/
+evaluation,test,10,Evaluation event 10,Test,EulerIII_130mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_130mm_1h/
+evaluation,test,11,Evaluation event 11,Test,EulerIII_30y_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_30y_1h/
+evaluation,test,12,Evaluation event 12,Test,EulerIII_90mm_1h,UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Test/EulerIII_90mm_1h/

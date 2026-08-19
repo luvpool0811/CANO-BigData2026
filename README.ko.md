@@ -16,7 +16,7 @@ CANO는 도시 침수 물리장 예측을 위한 좌표질의 신경 연산자�
 - 논문 표의 집계 결과와 익명화한 사건별 결과
 - 핵심 운영 신뢰도, 통계, baseline 공정성 공개표
 - 개발자료만 사용한 24개 HPO 후보와 선택 점수 전체
-- 125개 사건의 공개 역할 membership 계약
+- provider 사건명·archive 경로와 결속된 125개 역할 membership 계약
 - 표와 그래프를 다시 만드는 간단한 명령어
 
 데이터셋, 체크포인트, 대용량 예측 배열은 포함하지 않습니다.
@@ -52,6 +52,9 @@ GPU를 요구하지 않습니다.
 
 - `results/paper/operational_contrasts.csv`: UFB, UFC Berlin I/II, WB2의
   population 및 calibration-axis 효과
+- `results/paper/operational_evaluation_specification.csv`: Berlin I RQ1의
+  고정 predictor/archive, 모집단, interval rule, 보정·평가 역할, 보고 단위,
+  estimand, bootstrap, 허용 주장까지 한 행에 정리한 완전한 평가 명세
 - `results/paper/target_calibration.csv`: 논문 Table I의 4개 설정
 - `results/paper/claim_evidence.csv`: 주장별 추정대상, 독립 단위, 재표집,
   calibrator 처리, 다중검정, 사전지정 여부, 해석 경계
@@ -148,9 +151,9 @@ python scripts/run_evidence_pipeline.py \
 이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
 노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
 평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
-실행 전 125개 공개 alias의 역할 간 중복을 검사하고, 실행 중 개발·보정·평가
-event ID 중복을 즉시 거부합니다. 산출물에는 실제 ID 대신 공개 alias와
-namespace가 적용된 SHA-256 digest를 기록합니다.
+실행 전 125개 공개 alias와 provider 사건명·archive directory의 정확한 역할
+배정을 검사하고, 실행 중 개발·보정·평가 event ID 중복을 즉시 거부합니다.
+산출물에는 실제 ID 대신 공개 alias와 namespace가 적용된 digest를 기록합니다.
 
 논문 규모 실행 전에는 field array를 열지 않고 네 준비 split의 사건 ID 중복을
 검사할 수 있습니다.
@@ -160,8 +163,16 @@ python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i
 ```
 
-이 검사는 NPZ의 `event_id` metadata만 읽고 85/15/13/12 개수와 학습·개발·보정·
-평가 역할 간 identity 비중복을 확인합니다.
+각 NPZ에는 `berlin_i_role_membership.csv`의 `provider_event_name`과
+`provider_relative_path` metadata도 들어 있어야 합니다. 검사는 이 metadata만
+읽어 125개 provider identity가 85/15/13/12 역할에 정확히 배정됐는지 확인하며
+`input`, `target`, `mask`는 열지 않습니다. 원본 provider ZIP이 있다면 payload를
+열지 않고 central directory만 직접 대조할 수도 있습니다.
+
+```bash
+python scripts/validate_public_contract.py \
+  --provider-archive /path/to/UrbanFloodCast_Dataset.zip
+```
 
 ## 공개 결과
 

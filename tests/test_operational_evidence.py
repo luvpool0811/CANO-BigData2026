@@ -15,6 +15,7 @@ def _copy_csvs(source: Path, target: Path) -> None:
     target.mkdir(parents=True)
     for name in (
         "operational_contrasts.csv",
+        "operational_evaluation_specification.csv",
         "target_calibration.csv",
         "claim_evidence.csv",
         "baseline_fairness.csv",
@@ -31,6 +32,7 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
     assert result == {
         "status": "PASS",
         "operational_rows": 6,
+        "operational_specification_rows": 1,
         "target_calibration_rows": 4,
         "claim_rows": 11,
         "fairness_rows": 4,
@@ -41,6 +43,7 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
     }
     for name in (
         "operational_contrasts.md",
+        "operational_evaluation_specification.md",
         "target_calibration.md",
         "claim_evidence.md",
         "baseline_fairness.md",
@@ -87,6 +90,25 @@ def test_evaluation_data_cannot_enter_selection(tmp_path: Path) -> None:
         writer.writeheader()
         writer.writerows(rows)
     with pytest.raises(ValueError, match="evaluation data"):
+        validate_operational_inputs(copied)
+
+
+def test_rq1_specification_must_match_reported_contrast(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    copied = tmp_path / "paper"
+    _copy_csvs(root / "results/paper", copied)
+    path = copied / "operational_evaluation_specification.csv"
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        fields = reader.fieldnames
+    assert fields is not None
+    rows[0]["point_predictor"] = "unspecified predictor"
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="point_predictor"):
         validate_operational_inputs(copied)
 
 

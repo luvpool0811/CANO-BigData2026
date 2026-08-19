@@ -6,6 +6,7 @@ import csv
 import json
 from pathlib import Path
 from typing import Mapping
+import zipfile
 
 import numpy as np
 import yaml
@@ -35,11 +36,24 @@ def _validate_public_role_membership(
     root: Path,
     config: Mapping[str, object],
     contracts: Mapping[str, RoleContract],
-) -> None:
+) -> list[dict[str, str]]:
     filename = config.get("public_membership_file")
     if filename != "berlin_i_role_membership.csv":
         raise ValueError("Berlin I public membership file changed")
     rows = _csv_rows(root / "configs/evaluation" / str(filename))
+    provider_contract = {
+        "provider_release_doi": "https://doi.org/10.5281/zenodo.15700880",
+        "provider_archive_root": "UrbanFloodCast_Dataset",
+        "provider_domain": "BerlinI",
+        "provider_primary_view": "Seen regions and unseen rainfall events",
+        "provider_identity_fields": [
+            "provider_split",
+            "provider_event_name",
+            "provider_relative_path",
+        ],
+    }
+    if any(config.get(key) != value for key, value in provider_contract.items()):
+        raise ValueError("Berlin I provider release identity contract changed")
     observed: dict[str, list[dict[str, str]]] = {}
     for row in rows:
         observed.setdefault(row["role"], []).append(row)
@@ -56,6 +70,33 @@ def _validate_public_role_membership(
             or directories != {contract.directory}
         ):
             raise ValueError(f"public role membership changed for {role}")
+        expected_split = {
+            "training": "Train",
+            "development": "Train",
+            "calibration": "Valid",
+            "evaluation": "Test",
+        }[role]
+        for row in selected:
+            expected_path = (
+                f"{provider_contract['provider_archive_root']}/"
+                f"{provider_contract['provider_domain']}/"
+                f"{provider_contract['provider_primary_view']}/"
+                f"{expected_split}/{row['provider_event_name']}/"
+            )
+            if (
+                row["provider_split"] != expected_split
+                or row["provider_relative_path"] != expected_path
+            ):
+                raise ValueError(f"provider identity changed for {role}")
+    provider_paths = [row["provider_relative_path"] for row in rows]
+    if len(provider_paths) != len(set(provider_paths)):
+        raise ValueError("provider event directories must be globally unique")
+    return rows
+
+
+def _provider_membership(root: Path) -> list[dict[str, str]]:
+    config, contracts = _role_configuration(root.resolve())
+    return _validate_public_role_membership(root.resolve(), config, contracts)
 
 
 def _validate_training_configs(root: Path) -> None:
@@ -85,7 +126,7 @@ def validate_static_contract(root: Path) -> dict[str, object]:
 
     root = root.resolve()
     role_config, contracts = _role_configuration(root)
-    _validate_public_role_membership(root, role_config, contracts)
+    provider_rows = _validate_public_role_membership(root, role_config, contracts)
     _validate_training_configs(root)
     _validate_wis_scope(root)
     payload = validate_operational_inputs(root / "results/paper")
@@ -93,6 +134,10 @@ def validate_static_contract(root: Path) -> dict[str, object]:
         "status": "PASS",
         "checkpoint_selection_metric": CHECKPOINT_SELECTION_METRIC,
         "public_role_rows": sum(contract.count for contract in contracts.values()),
+        "provider_identity_rows": len(provider_rows),
+        "operational_specification_rows": len(
+            payload["operational_evaluation_specification.csv"]
+        ),
         "hpo_candidate_rows": len(payload["hpo_candidates.csv"]),
         "reproducibility_scope_rows": len(payload["reproducibility_scope.csv"]),
         "raw_field_arrays_opened": 0,
@@ -100,10 +145,17 @@ def validate_static_contract(root: Path) -> dict[str, object]:
 
 
 def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object]:
-    """Check prepared split identity disjointness without reading field arrays."""
+    """Check exact provider split membership without reading field arrays."""
 
     _, contracts = _role_configuration(root.resolve())
+    membership = _provider_membership(root.resolve())
+    expected_by_directory: dict[str, dict[str, str]] = {}
+    for row in membership:
+        expected_by_directory.setdefault(row["directory"], {})[
+            row["provider_relative_path"]
+        ] = row["provider_event_name"]
     owner: dict[str, str] = {}
+    observed_provider_paths: set[str] = set()
     counts: dict[str, int] = {}
     for role, contract in contracts.items():
         paths = sorted((data_root / contract.directory).glob("*.npz"))
@@ -118,6 +170,21 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
                     if "event_id" in payload
                     else path.stem
                 )
+                if "provider_relative_path" not in payload or "provider_event_name" not in payload:
+                    raise ValueError(
+                        f"{path.name} lacks provider identity metadata; recreate it "
+                        "with prepare_event_npz.py"
+                    )
+                provider_path = str(payload["provider_relative_path"].item())
+                provider_name = str(payload["provider_event_name"].item())
+            expected_name = expected_by_directory[contract.directory].get(provider_path)
+            if expected_name is None or provider_name != expected_name:
+                raise ValueError(
+                    f"prepared provider identity is not assigned to role {role}"
+                )
+            if provider_path in observed_provider_paths:
+                raise ValueError("provider identity is duplicated across prepared roles")
+            observed_provider_paths.add(provider_path)
             previous = owner.get(event_id)
             if previous is not None:
                 if previous == role:
@@ -129,12 +196,48 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
         counts[role] = len(paths)
     if len(owner) != sum(counts.values()):
         raise ValueError("prepared event identities are not globally unique")
+    expected_provider_paths = {
+        row["provider_relative_path"] for row in membership
+    }
+    if observed_provider_paths != expected_provider_paths:
+        raise ValueError("prepared provider identities do not match the public ledger")
     return {
         "status": "PASS",
         "role_counts": counts,
         "unique_event_ids": len(owner),
+        "provider_identities_matched": len(observed_provider_paths),
         "field_arrays_opened": 0,
-        "event_id_metadata_only": True,
+        "identity_metadata_only": True,
+    }
+
+
+def validate_provider_archive_membership(root: Path, archive: Path) -> dict[str, object]:
+    """Match the public ledger to provider ZIP directory identities only."""
+
+    expected = {row["provider_relative_path"] for row in _provider_membership(root)}
+    prefix = "UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/"
+    observed: set[str] = set()
+    with zipfile.ZipFile(archive, "r") as bundle:
+        members = bundle.namelist()
+    for member in members:
+        if not member.startswith(prefix):
+            continue
+        relative = member[len(prefix):].split("/")
+        if len(relative) < 3 or relative[0] not in {"Train", "Valid", "Test"}:
+            continue
+        observed.add(f"{prefix}{relative[0]}/{relative[1]}/")
+    if observed != expected:
+        missing = len(expected - observed)
+        extra = len(observed - expected)
+        raise ValueError(
+            f"provider archive membership differs from public ledger: "
+            f"missing={missing}, extra={extra}"
+        )
+    return {
+        "status": "PASS",
+        "provider_event_directories": len(observed),
+        "zip_directory_entries_scanned": len(members),
+        "payload_members_opened": 0,
     }
 
 
@@ -146,14 +249,24 @@ def main(argv: list[str] | None = None) -> int:
         "--root", type=Path, default=Path(__file__).resolve().parents[2]
     )
     parser.add_argument("--data-root", type=Path)
+    parser.add_argument("--provider-archive", type=Path)
     args = parser.parse_args(argv)
     result = validate_static_contract(args.root)
     if args.data_root is not None:
         result["prepared_split_check"] = validate_prepared_split_ids(
             args.root, args.data_root
         )
+    if args.provider_archive is not None:
+        result["provider_archive_check"] = validate_provider_archive_membership(
+            args.root.resolve(), args.provider_archive
+        )
     print(json.dumps(result, sort_keys=True))
     return 0
 
 
-__all__ = ["main", "validate_prepared_split_ids", "validate_static_contract"]
+__all__ = [
+    "main",
+    "validate_prepared_split_ids",
+    "validate_provider_archive_membership",
+    "validate_static_contract",
+]
