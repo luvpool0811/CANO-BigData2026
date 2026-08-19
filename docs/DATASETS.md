@@ -29,8 +29,11 @@ prepared/berlin-i/
 The paper's role contract is recorded in
 `configs/evaluation/berlin_i_roles.yaml`: 85 training events, 15 development
 events, 13 calibration events, and 12 held-out evaluation events. Keep these
-roles disjoint. The public event-level CSV uses neutral aliases `Event 01`
-through `Event 12`; it does not redistribute provider files or identifiers.
+roles disjoint. The checked-in contract expands 125 role-specific neutral
+aliases and rejects an alias or directory assigned to more than one role. The
+evidence pipeline additionally rejects repeated observed IDs and emits only
+public aliases plus namespaced SHA-256 digests. It does not redistribute
+provider files or identifiers.
 
 Each NPZ file contains:
 

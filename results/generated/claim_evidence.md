@@ -1,0 +1,13 @@
+| Claim | Estimand | n | Unit | Resampling | Calibrator | Multiplicity | Status |
+|---|---|---|---|---|---|---|---|
+| C1-identification | sharp bounds for selected coverage given marginal coverage and selection frequency | not applicable | reporting cluster | analytical result | not applicable | not applicable | theoretical specification |
+| RQ1-UFB-California | full-field minus forecast-selected coverage | 69 | rainfall event | nested paired event bootstrap; B=2000 | refit inside bootstrap | none | development analysis |
+| RQ1-UFB-Tennessee | full-field minus forecast-selected coverage | 68 | rainfall event | nested paired event bootstrap; B=2000 | refit inside bootstrap | none | development analysis |
+| RQ1-UFC-BerlinI | full-field minus forecast-selected coverage | 12 | rainfall event | paired event bootstrap; B=2000 | fixed fitted calibrator | none | prespecified external evaluation |
+| RQ2-UFC-BerlinI | magnitude-stratified minus lead-stratified selected-population coverage | 12 | rainfall event | paired event bootstrap; B=2000 | fixed fitted calibrators | none | prespecified external evaluation |
+| UFC-three-initialization | equal-initialization population and calibration-axis contrasts | 12 x 3 | event within initialization | nested calibration/test bootstrap; B=5000 | refit inside replicate | none | prospectively locked extension |
+| UFC-BerlinII | target-recalibrated population and calibration-axis contrasts | 47 | rainfall event | paired event bootstrap; B=2000 | fitted on 25 separate target-domain calibration events; fixed in test bootstrap | none | target-domain stress analysis |
+| WB2-cross-domain | population and calibration-axis coverage contrasts | 365 | issuance day | circular moving-block bootstrap; 14-day blocks; B=5000 | fixed 2021 calibrator | none | prespecified analogous test |
+| CANO-baseline-HRMSE | relative event-macro H-RMSE difference for CANO versus each named comparator | 12 | rainfall event | paired event bootstrap; B=5000 plus exact sign-flip test | not applicable | Holm within the three-comparator H-RMSE family | prespecified comparison |
+| CANO-baseline-WIS | relative target-aligned WIS difference for CANO versus each named comparator | 12 | rainfall event | paired event bootstrap; B=5000 plus exact sign-flip test | development node scales and calibration-event quantiles held fixed | Holm within the three-comparator WIS family | prespecified comparison |
+| CANO-objective-followup | peak-aware objective versus standard and selection-matched control | 12 | rainfall event | paired event analysis on the existing set | fixed evaluation and calibration roles | endpoint-specific gates | post-evaluation motivated; non-confirmatory |

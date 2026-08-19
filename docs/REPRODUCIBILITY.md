@@ -20,7 +20,13 @@
    python scripts/reproduce_inference.py
    ```
 
-4. **Train one CANO seed (GPU, prepared UrbanFloodCast data required)**
+4. **Rebuild central operational/statistical disclosures (CPU, seconds)**
+
+   ```bash
+   python scripts/reproduce_operational_evidence.py
+   ```
+
+5. **Train one CANO seed (GPU, prepared UrbanFloodCast data required)**
 
    ```bash
    python scripts/train.py --config configs/cano/standard.yaml \
@@ -28,7 +34,7 @@
      --output-dir outputs/cano/seed-42 --seed 42 --device cuda
    ```
 
-5. **Train an external model under the common contract**
+6. **Train an external model under the common contract**
 
    Prepare the specified UrbanFloodCast checkout and pass it with
    `--upstream-source`. See `BASELINE_ADAPTATION.md`.
@@ -40,6 +46,12 @@ the paper. `event_level_results.csv` exposes 12 anonymized event records for
 the standard-objective comparison. The reproduction script reads only these
 small CSV files. It does not claim to retrain models or recalculate metrics from
 bulk arrays.
+
+`operational_contrasts.csv` and `target_calibration.csv` are the compact source
+tables for the paper's central Fig. 2/Table I evidence. They contain only
+reporting-unit summaries and no field arrays. `claim_evidence.csv` and
+`baseline_fairness.csv` expose the statistical and training-design disclosures
+that are easy to miss in the page-limited manuscript.
 
 `reproduce_inference.py` uses the checked-in event rows to reproduce the six
 prespecified CANO-versus-Original comparisons. It reports the paired relative
@@ -66,7 +78,10 @@ fitting, calibration-only target-aligned fitting, and one event record per
 held-out evaluation event. The split counts and seed contract are declared in
 `configs/evaluation/berlin_i_roles.yaml`. The unit suite runs this complete
 chain on small synthetic fields; a paper-scale run requires the provider data
-and trained checkpoints.
+and trained checkpoints. It validates pairwise-disjoint public aliases before
+data access, rejects observed ID reuse within/across development, calibration,
+and evaluation roles, and reports public aliases plus namespaced event-ID
+digests.
 
 ## Determinism
 
@@ -77,5 +92,7 @@ CUDA, PyTorch, and driver versions with any independently reproduced result.
 ## Scope
 
 The public comparison supports the reported BerlinI event set and named model
-configurations. Broader spatial generalization and the peak-aware CANO objective
-should be evaluated on independent events and additional urban domains.
+configurations. The peak-aware aggregate/config scope is public, but the compact
+training CLI reproduces the standard objective only. Broader spatial
+generalization and the peak-aware CANO objective should be evaluated on
+independent events and additional urban domains.

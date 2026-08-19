@@ -23,6 +23,7 @@ cano-train = "cano_bigdata2026.cli:train_main"
 cano-evaluate = "cano_bigdata2026.cli:evaluate_main"
 cano-reproduce-results = "cano_bigdata2026.results:main"
 cano-reproduce-inference = "cano_bigdata2026.inference:main"
+cano-reproduce-operational-evidence = "cano_bigdata2026.operational_evidence:main"
 cano-evidence-pipeline = "cano_bigdata2026.workflow:main"
 
 [tool.setuptools.packages.find]

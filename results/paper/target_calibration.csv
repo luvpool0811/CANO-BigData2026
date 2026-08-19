@@ -1,0 +1,5 @@
+setting,calibration_units,domain_coverage,domain_ace,target_coverage,target_ace,delta_ace,delta_ace_ci_lower,delta_ace_ci_upper,relative_winkler,relative_winkler_ci_lower,relative_winkler_ci_upper,calibration_note
+California,5--6,0.817,0.122,0.888,0.100,-0.021,-0.039,-0.004,0.011,-0.008,0.031,event-balanced fold calibration
+Tennessee,5--6,0.391,0.509,0.926,0.149,-0.347,-0.398,-0.287,0.090,0.019,0.183,event-balanced fold calibration
+Berlin I,13,0.754,0.169,0.885,0.056,-0.111,-0.163,-0.057,0.217,0.170,0.267,fixed external point predictor
+Berlin II,25,0.672,0.228,0.896,0.015,-0.213,-0.238,-0.184,0.611,0.598,0.624,target-domain interval recalibration with point predictor fixed

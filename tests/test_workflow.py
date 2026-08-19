@@ -4,10 +4,12 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
+import yaml
 
 from cano_bigdata2026.models import build_model
-from cano_bigdata2026.workflow import run_evidence_pipeline
+from cano_bigdata2026.workflow import run_evidence_pipeline, validate_role_contracts
 
 
 MODEL_CONFIG = {
@@ -65,10 +67,12 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     roles = tmp_path / "roles.yaml"
     roles.write_text(
         "ensemble_seeds: [1, 2, 3]\n"
+        "event_id_digest_namespace: synthetic-test/v1\n"
         "roles:\n"
-        "  development: {directory: validation, count: 1}\n"
-        "  calibration: {directory: calibration, count: 1}\n"
-        "  evaluation: {directory: test, count: 1}\n",
+        "  training: {directory: train, count: 1, public_event_alias_prefix: Train}\n"
+        "  development: {directory: validation, count: 1, public_event_alias_prefix: Development}\n"
+        "  calibration: {directory: calibration, count: 1, public_event_alias_prefix: Calibration}\n"
+        "  evaluation: {directory: test, count: 1, public_event_alias_prefix: Evaluation}\n",
         encoding="utf-8",
     )
     calibration = tmp_path / "calibration.yaml"
@@ -100,6 +104,86 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     assert payload["checkpoint_seeds"] == [1, 2, 3]
     assert payload["truth_wet_threshold_m"] == 0.01
     assert payload["evaluation_target_reads"] == 1
+    assert payload["role_counts"] == {
+        "training": 1,
+        "development": 1,
+        "calibration": 1,
+        "evaluation": 1,
+    }
+    assert payload["role_identity"]["pairwise_disjoint_observed_roles"] is True
+    assert len(payload["role_identity"]["event_id_digests"]["evaluation"]) == 1
+    assert payload["events"][0]["event_id"] == "Evaluation 01"
     assert payload["point_prediction_event_macro"]["n_events"] == 1
     assert len(payload["events"]) == 1
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "PASS"
+
+    calibration_event = data / "calibration/calibration-01.npz"
+    with np.load(calibration_event, allow_pickle=False) as archive:
+        duplicate = {key: np.asarray(archive[key]).copy() for key in ("input", "target", "mask")}
+    np.savez_compressed(
+        calibration_event,
+        **duplicate,
+        event_id=np.asarray("validation-01"),
+    )
+    with pytest.raises(ValueError, match="overlaps roles development and calibration"):
+        run_evidence_pipeline(
+            checkpoints=checkpoints,
+            data_root=data,
+            normalization_path=normalization,
+            role_config_path=roles,
+            calibration_config_path=calibration,
+            output_path=tmp_path / "overlap.json",
+            device="cpu",
+            query_chunk_size=16,
+        )
+
+
+def test_public_role_aliases_must_be_pairwise_disjoint() -> None:
+    config = {
+        "roles": {
+            "training": {
+                "directory": "train",
+                "count": 1,
+                "public_event_aliases": ["same"],
+            },
+            "development": {
+                "directory": "validation",
+                "count": 1,
+                "public_event_aliases": ["same"],
+            },
+            "calibration": {
+                "directory": "calibration",
+                "count": 1,
+                "public_event_alias_prefix": "Calibration",
+            },
+            "evaluation": {
+                "directory": "test",
+                "count": 1,
+                "public_event_alias_prefix": "Evaluation",
+            },
+        }
+    }
+    with pytest.raises(ValueError, match="overlaps roles"):
+        validate_role_contracts(config)
+
+
+def test_checked_in_role_contract_is_complete_and_disjoint() -> None:
+    root = Path(__file__).resolve().parents[1]
+    config = yaml.safe_load(
+        (root / "configs/evaluation/berlin_i_roles.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    contracts = validate_role_contracts(config)
+    assert {role: row.count for role, row in contracts.items()} == {
+        "training": 85,
+        "development": 15,
+        "calibration": 13,
+        "evaluation": 12,
+    }
+    aliases = [
+        alias
+        for contract in contracts.values()
+        for alias in contract.public_event_aliases
+    ]
+    assert len(aliases) == len(set(aliases)) == 125
