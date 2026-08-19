@@ -53,6 +53,14 @@ reporting-unit summaries and no field arrays. `claim_evidence.csv` and
 `baseline_fairness.csv` expose the statistical and training-design disclosures
 that are easy to miss in the page-limited manuscript.
 
+`operational_evaluation_specification.csv` closes the central Berlin I RQ1
+contract in one machine-readable row. It identifies the fixed seed-42
+forcing-aware DNO prediction archive, full and prediction-selected
+populations, global absolute-residual interval construction, provider
+Valid/Test roles, event-macro estimand, paired bootstrap, and claim boundary.
+The validator binds its numerical fields to `operational_contrasts.csv` and its
+resampling/calibrator fields to `claim_evidence.csv`.
+
 `reproduce_inference.py` uses the checked-in event rows to reproduce the six
 prespecified CANO-versus-Original comparisons. It reports the paired relative
 effect, a 5,000-resample event bootstrap interval (seed 20260731), the exact
@@ -115,10 +123,13 @@ and evaluation roles, and reports public aliases plus namespaced event-ID
 digests.
 
 `configs/evaluation/berlin_i_role_membership.csv` expands the 125-row public
-role contract. Run `scripts/validate_public_contract.py --data-root ...` to
-check the prepared 85/15/13/12 counts and event-ID disjointness across all four
-roles. It accesses only each NPZ `event_id` metadata item and emits no provider
-identifiers.
+role contract and binds every alias to the provider split, event name, and
+archive-relative directory. Run `scripts/validate_public_contract.py
+--data-root ...` to check exact provider membership, the prepared 85/15/13/12
+counts, and event-ID disjointness across all four roles. It accesses only
+scalar identity metadata. With `--provider-archive ...`, it independently
+matches all 125 directories from the ZIP central directory without opening a
+payload member.
 
 ## Determinism
 

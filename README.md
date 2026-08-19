@@ -18,7 +18,8 @@ submission and provides:
 - central operational-reliability, statistical, and baseline-fairness
   disclosures;
 - all 24 development-only HPO candidates and their selection scores;
-- an explicit 125-row public role-membership contract; and
+- an explicit 125-row role ledger bound to the provider's event names and
+  archive directories; and
 - scripts that rebuild the result tables and figures without accessing the
   original evaluation arrays.
 
@@ -63,6 +64,10 @@ cross-domain test.
 
 - [`operational_contrasts.csv`](results/paper/operational_contrasts.csv) is the
   source for the plot and the regenerated Fig. 2-style effect table.
+- [`operational_evaluation_specification.csv`](results/paper/operational_evaluation_specification.csv)
+  gives the complete Berlin I RQ1 row: fixed predictor/archive, population,
+  interval rule, calibration/evaluation roles, reporting unit, estimand,
+  resampling, and admissible claim.
 - [`target_calibration.csv`](results/paper/target_calibration.csv) reproduces
   the four Table I setting profiles.
 - [`claim_evidence.csv`](results/paper/claim_evidence.csv) states the estimand,
@@ -227,9 +232,10 @@ This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
 85 training events. Before data access, it validates 125 unique public role
-aliases. During execution it rejects duplicate event identities within or
-across development, calibration, and evaluation roles and records only public
-aliases plus namespaced SHA-256 event-ID digests in the evidence output.
+aliases and their exact provider event-name/archive-directory assignments.
+During execution it rejects duplicate event identities within or across
+development, calibration, and evaluation roles and records only public aliases
+plus namespaced event-ID digests in the evidence output.
 Dataset files remain provider-managed and are not bundled.
 
 Before a paper-scale run, verify all four prepared split identities without
@@ -240,9 +246,18 @@ python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i
 ```
 
-The optional data check reads only each NPZ `event_id` metadata item, enforces
-the declared 85/15/13/12 counts, and rejects identity reuse within or across
-training, development, calibration, and evaluation.
+Each NPZ must carry the `provider_event_name` and `provider_relative_path`
+metadata declared by
+[`berlin_i_role_membership.csv`](configs/evaluation/berlin_i_role_membership.csv).
+The optional data check compares all 125 identities exactly while leaving
+`input`, `target`, and `mask` unopened. If the original provider ZIP is
+available, its central directory can be checked directly—without opening
+payload members—with:
+
+```bash
+python scripts/validate_public_contract.py \
+  --provider-archive /path/to/UrbanFloodCast_Dataset.zip
+```
 
 ## Run an external baseline
 

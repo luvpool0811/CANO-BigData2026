@@ -1,4 +1,12 @@
 dataset: UrbanFloodCast Berlin I
+provider_release_doi: https://doi.org/10.5281/zenodo.15700880
+provider_archive_root: UrbanFloodCast_Dataset
+provider_domain: BerlinI
+provider_primary_view: Seen regions and unseen rainfall events
+provider_identity_fields:
+  - provider_split
+  - provider_event_name
+  - provider_relative_path
 ensemble_seeds: [7, 31, 42]
 event_id_digest_namespace: CANO-BigData2026/UrbanFloodCast-BerlinI/v1
 public_membership_file: berlin_i_role_membership.csv

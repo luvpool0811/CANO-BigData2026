@@ -30,12 +30,14 @@ The paper's role contract is recorded in
 `configs/evaluation/berlin_i_roles.yaml`: 85 training events, 15 development
 events, 13 calibration events, and 12 held-out evaluation events. Keep these
 roles disjoint. The checked-in contract expands 125 role-specific neutral
-aliases and rejects an alias or directory assigned to more than one role. The
-expanded rows are published in
+aliases and binds each one to the provider's split, event name, and
+archive-relative directory. It rejects an alias or provider directory assigned
+to more than one role. The expanded rows are published in
 `configs/evaluation/berlin_i_role_membership.csv`. The
 evidence pipeline additionally rejects repeated observed IDs and emits only
-public aliases plus namespaced SHA-256 digests. It does not redistribute
-provider files or identifiers.
+public aliases plus namespaced digests. Provider files are not redistributed;
+the event names and relative directories are metadata from the DOI-pinned
+release.
 
 After preparing the NPZ directories, verify the full identity contract with:
 
@@ -44,10 +46,11 @@ python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i
 ```
 
-The optional check opens only the scalar `event_id` metadata member, validates
-the 85/15/13/12 counts, and rejects duplicates within or across all four roles.
-It does not read `input`, `target`, or `mask` arrays and does not print provider
-event IDs.
+The optional check opens only scalar identity metadata, validates the exact
+provider path/name assignment and the 85/15/13/12 counts, and rejects
+duplicates within or across all four roles. It does not read `input`, `target`,
+or `mask` arrays. The provider ZIP itself can be checked using
+`--provider-archive`; only its central directory is read.
 
 Each NPZ file contains:
 
@@ -57,6 +60,8 @@ Each NPZ file contains:
 | `target` | float32 | `[72,H,W]` | 24 lead times × H/U/V, interleaved by lead |
 | `mask` | bool | `[H,W]` | valid spatial cells |
 | `event_id` | string | scalar | event identifier |
+| `provider_event_name` | string | scalar | exact event directory name in the provider release |
+| `provider_relative_path` | string | scalar | exact DOI-release archive directory assigned by the public ledger |
 
 The arrays supplied to training are normalized. `normalization.json` stores the
 training-only output statistics used to convert predictions and targets back to
@@ -86,6 +91,8 @@ python scripts/prepare_event_npz.py \
   --target arrays/target_event_001.npy \
   --mask arrays/valid_mask.npy \
   --event-id event_001 \
+  --provider-event-name EulerII_30y_1h \
+  --provider-relative-path 'UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/Train/EulerII_30y_1h/' \
   --output prepared/berlin-i/train/event_001.npz
 ```
 

@@ -9,12 +9,20 @@ from pathlib import Path
 import numpy as np
 
 
+PROVIDER_PREFIX = (
+    "UrbanFloodCast_Dataset/BerlinI/"
+    "Seen regions and unseen rainfall events/"
+)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--target", type=Path, required=True)
     parser.add_argument("--mask", type=Path, required=True)
     parser.add_argument("--event-id", required=True)
+    parser.add_argument("--provider-event-name", required=True)
+    parser.add_argument("--provider-relative-path", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     inputs = np.asarray(np.load(args.input, allow_pickle=False), dtype=np.float32)
@@ -28,6 +36,12 @@ def main() -> int:
         raise ValueError(f"mask must be nonempty [H,W], found {mask.shape}")
     if not np.isfinite(inputs[:, mask]).all() or not np.isfinite(target[:, mask]).all():
         raise ValueError("valid input and target values must be finite")
+    expected_suffix = f"/{args.provider_event_name}/"
+    if (
+        not args.provider_relative_path.startswith(PROVIDER_PREFIX)
+        or not args.provider_relative_path.endswith(expected_suffix)
+    ):
+        raise ValueError("provider identity does not match the pinned archive layout")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         args.output,
@@ -35,6 +49,8 @@ def main() -> int:
         target=target,
         mask=mask,
         event_id=np.asarray(args.event_id),
+        provider_event_name=np.asarray(args.provider_event_name),
+        provider_relative_path=np.asarray(args.provider_relative_path),
     )
     print(args.output)
     return 0
