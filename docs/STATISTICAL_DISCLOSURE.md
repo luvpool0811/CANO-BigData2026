@@ -22,6 +22,11 @@ comparisons and the three target-aligned WIS comparisons. The WIS bootstrap
 holds the development-fitted node scales and calibration-event quantiles fixed;
 its intervals are therefore conditional on those fixed archives.
 
+Target WIS compares complete operational systems. Each model defines its own
+population from its own prediction and is evaluated with its own development-
+fitted node scale and calibration quantile. It is therefore neither a common-
+population contrast nor an architecture-only causal comparison.
+
 ## Baseline setting and training exposure
 
 `results/paper/baseline_fairness.csv` reports the candidate count, development-
@@ -31,6 +36,13 @@ systems. The three external models reuse only the winning development-selected
 configuration from six candidates per architecture; their weights are trained
 from scratch for the controlled comparison. Evaluation events are not used for
 setting or checkpoint selection.
+
+The shared budget is six candidates, seeds 7/31/42, 100 epochs per seed, and
+12,900 optimizer updates per reported system. This is an optimizer-level
+contract, not an assertion of identical label exposure per update. CANO samples
+one lead and up to 4,096 query coordinates per event/update; the grid baselines
+use their native dense 24-lead H/U/V field supervision. The full candidate
+ledger and development scores are in `results/paper/hpo_candidates.csv`.
 
 The comparison is between complete systems under a common interface. It does
 not isolate architecture as a causal factor, and the wall times are descriptive

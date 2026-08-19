@@ -15,6 +15,8 @@ CANO는 도시 침수 물리장 예측을 위한 좌표질의 신경 연산자�
 - 원 저자 DNO-3·FNO3D·U-Net3D 코드용 adapter
 - 논문 표의 집계 결과와 익명화한 사건별 결과
 - 핵심 운영 신뢰도, 통계, baseline 공정성 공개표
+- 개발자료만 사용한 24개 HPO 후보와 선택 점수 전체
+- 125개 사건의 공개 역할 membership 계약
 - 표와 그래프를 다시 만드는 간단한 명령어
 
 데이터셋, 체크포인트, 대용량 예측 배열은 포함하지 않습니다.
@@ -30,6 +32,7 @@ python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
 python scripts/reproduce_operational_evidence.py
+python scripts/validate_public_contract.py
 ```
 
 첫 명령은 합성 입력을 이용한 소규모 최적화 smoke test이며, 두 번째 명령은
@@ -37,7 +40,8 @@ python scripts/reproduce_operational_evidence.py
 6개 사전지정 사건쌍 비교의 효과크기, bootstrap 신뢰구간, exact sign-flip
 p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 운영대상
 contrast, target calibration, 주장-근거, baseline 공정성 표와 중심 효과 그림을
-재생성합니다. 모든 명령은 데이터 다운로드나
+재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 공개 역할
+membership, 재현 수준, WIS 해석 범위를 함께 검사합니다. 모든 명령은 데이터 다운로드나
 GPU를 요구하지 않습니다.
 
 ## 핵심 운영 신뢰도 근거
@@ -52,7 +56,16 @@ GPU를 요구하지 않습니다.
 - `results/paper/claim_evidence.csv`: 주장별 추정대상, 독립 단위, 재표집,
   calibrator 처리, 다중검정, 사전지정 여부, 해석 경계
 - `results/paper/baseline_fairness.csv`: 후보 설정, 개발자료 선택 규칙, seed,
-  학습 노출, checkpoint 선택
+  공통 예산, 아키텍처별 update당 supervision, checkpoint 선택
+- `results/paper/hpo_candidates.csv`: 네 시스템의 후보 6개 전체 설정,
+  seed-42 개발 사건-매크로 physical-H RMSE, best epoch와 선택 결과
+- `results/paper/reproducibility_scope.csv`: 사건행 기반 통계 재계산, 요약값 기반
+  재생성, provider data/checkpoint가 필요한 코드 경로의 구분
+
+UFB/UFC/WB2 운영대상 표와 그림은 공개 reporting-unit 요약값에서 재생성하며,
+field array에서 통계를 다시 계산하지 않습니다. 반면 CANO--baseline 6개 사건쌍
+비교는 공개된 48개 사건행에서 통계를 다시 계산합니다. 이 범위 차이를 공개
+계약에 명시했습니다.
 
 세부 통계 가정과 WIS 신뢰구간의 조건부 해석은
 [`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md)에 정리했습니다.
@@ -76,6 +89,11 @@ python scripts/train.py \
   --device cuda
 ```
 
+학습 loss는 각 아키텍처의 native normalized MSE를 유지합니다. 그러나 네 시스템
+모두 checkpoint는 개발 사건 전체·24개 lead·모든 유효 셀의 physical-H RMSE를
+사건별로 계산한 뒤 평균하는 동일한 결정론적 기준으로 선택합니다. 설정과
+checkpoint에는 `development_event_macro_physical_h_rmse`로 기록합니다.
+
 ## 외부 baseline 학습
 
 외부 코드를 이 저장소에 복제하지 않습니다. 원 저장소의 지정 revision을
@@ -97,6 +115,15 @@ python scripts/train.py \
 FNO3D와 U-Net3D는 각각 `configs/baselines/fno3d.yaml`,
 `configs/baselines/unet3d.yaml`을 사용합니다. 구체적인 조건은
 [`docs/BASELINE_ADAPTATION.md`](docs/BASELINE_ADAPTATION.md)에 있습니다.
+
+공통 예산은 후보 6개, seed 7/31/42, seed당 100 epochs, 시스템당 12,900
+optimizer updates를 뜻합니다. update당 label 노출까지 동일하다고 주장하지
+않습니다. CANO는 한 lead와 최대 4,096개 query 좌표를 표본화하고, grid baseline은
+native dense 24-lead H/U/V field supervision을 사용합니다.
+
+Target WIS는 complete-system 운영 위험 비교입니다. 각 모델은 자신의 예측으로
+선택한 population과 자체 development/calibration fit에서 평가되므로, 동일
+population의 architecture-only 인과 비교가 아닙니다.
 
 운영대상 정렬 보정 설정은
 `configs/calibration/target_aligned.yaml`에 있습니다. 노드별 scale은 개발
@@ -124,6 +151,17 @@ python scripts/run_evidence_pipeline.py \
 실행 전 125개 공개 alias의 역할 간 중복을 검사하고, 실행 중 개발·보정·평가
 event ID 중복을 즉시 거부합니다. 산출물에는 실제 ID 대신 공개 alias와
 namespace가 적용된 SHA-256 digest를 기록합니다.
+
+논문 규모 실행 전에는 field array를 열지 않고 네 준비 split의 사건 ID 중복을
+검사할 수 있습니다.
+
+```bash
+python scripts/validate_public_contract.py \
+  --data-root /path/to/prepared/berlin-i
+```
+
+이 검사는 NPZ의 `event_id` metadata만 읽고 85/15/13/12 개수와 학습·개발·보정·
+평가 역할 간 identity 비중복을 확인합니다.
 
 ## 공개 결과
 
@@ -192,10 +230,12 @@ python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
 python scripts/reproduce_operational_evidence.py
+python scripts/validate_public_contract.py
 ```
 
 검증은 모델 크기, adapter 텐서 변환, 지표 계산, CLI 및 공개 결과 재생성을
-수분 이내에 확인하도록 구성했습니다. 합성 데이터에서는 3개 checkpoint의
+수분 이내에 확인하도록 구성했습니다. HPO winner와 공개 split membership도
+검사합니다. 합성 데이터에서는 3개 checkpoint의
 ensemble부터 calibration과 사건별 평가까지도 끝까지 검사합니다. 학습 전체를
 다시 실행하거나 대용량 평가 배열을 읽는 장시간 감사 절차는 포함하지 않습니다.
 

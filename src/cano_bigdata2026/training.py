@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from . import contracts as C
-from .data import EventNPZDataset, event_files
+from .data import EventNPZDataset, Normalization, event_files
 from .models import CANO, build_model, real_parameter_count
 
 
@@ -78,10 +78,51 @@ def _dense_loss(
 
 @dataclass(frozen=True)
 class TrainResult:
-    best_validation_loss: float
+    best_validation_h_rmse_m: float
     epochs_completed: int
     parameter_count: int
     checkpoint: Path
+
+
+CHECKPOINT_SELECTION_METRIC = "development_event_macro_physical_h_rmse"
+
+
+def _event_macro_physical_h_rmse(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    *,
+    normalization: Normalization,
+    device: torch.device,
+    query_chunk_size: int,
+) -> float:
+    """Compute the paper's deterministic development checkpoint score.
+
+    Training losses remain architecture-native normalized losses. Every
+    development event, all 24 leads, and every valid cell contribute in
+    physical metres before the event-level H-RMSE values are averaged.
+    """
+
+    event_scores: list[float] = []
+    h_channels = [C.output_channel(lead, 0) for lead in range(C.N_LEADS)]
+    model.eval()
+    with torch.no_grad():
+        for batch in loader:
+            inputs = batch["input"].to(device)
+            if isinstance(model, CANO):
+                prediction = model(inputs, query_chunk_size=query_chunk_size)
+            else:
+                prediction = model(inputs)
+            prediction = normalization.denormalize_output(prediction.cpu())
+            truth = normalization.denormalize_output(batch["target"])
+            mask = batch["mask"][0].to(torch.bool)
+            prediction_h = prediction[0, h_channels][:, mask]
+            truth_h = truth[0, h_channels][:, mask]
+            event_scores.append(
+                float(torch.sqrt(torch.mean((prediction_h - truth_h) ** 2)))
+            )
+    if not event_scores:
+        raise ValueError("development split is empty")
+    return float(np.mean(event_scores))
 
 
 def train(
@@ -103,6 +144,14 @@ def train(
         model_name, model_settings, upstream_source=upstream_source
     ).to(target_device)
     settings = dict(config["training"])
+    selection_metric = str(
+        settings.get("checkpoint_selection_metric", CHECKPOINT_SELECTION_METRIC)
+    )
+    if selection_metric != CHECKPOINT_SELECTION_METRIC:
+        raise ValueError(
+            "checkpoint_selection_metric must be " + CHECKPOINT_SELECTION_METRIC
+        )
+    normalization = Normalization.load(Path(data_root) / "normalization.json")
     train_dataset = EventNPZDataset(event_files(data_root, "train"))
     validation_dataset = EventNPZDataset(event_files(data_root, "validation"))
     batch_size = int(settings.get("micro_batch_size", 1))
@@ -124,6 +173,7 @@ def train(
     accumulation = int(settings.get("gradient_accumulation_steps", 1))
     gradient_clip = float(settings.get("gradient_clip_norm", 0.0))
     query_count = int(settings.get("queries_per_event", 4096))
+    validation_query_chunk = int(settings.get("validation_query_chunk", 32768))
     max_epochs = int(settings["max_epochs"])
     patience = int(settings["patience"])
     sample_generator = torch.Generator().manual_seed(seed + 1009)
@@ -159,26 +209,13 @@ def train(
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
-        model.eval()
-        validation_losses: list[float] = []
-        with torch.no_grad():
-            for batch in validation_loader:
-                inputs = batch["input"].to(target_device)
-                targets = batch["target"].to(target_device)
-                masks = batch["mask"].to(target_device)
-                if model_name == "cano":
-                    value = _cano_query_loss(
-                        model,
-                        inputs,
-                        targets,
-                        masks,
-                        queries_per_event=query_count,
-                        generator=sample_generator,
-                    )
-                else:
-                    value = _dense_loss(model, inputs, targets, masks)
-                validation_losses.append(float(value.cpu()))
-        score = float(np.mean(validation_losses))
+        score = _event_macro_physical_h_rmse(
+            model,
+            validation_loader,
+            normalization=normalization,
+            device=target_device,
+            query_chunk_size=validation_query_chunk,
+        )
         epochs_completed = epoch + 1
         if score < best:
             best = score
@@ -190,7 +227,8 @@ def train(
                     "state_dict": model.state_dict(),
                     "seed": int(seed),
                     "epoch": int(epoch),
-                    "validation_loss": score,
+                    "checkpoint_selection_metric": selection_metric,
+                    "checkpoint_selection_score": score,
                 },
                 checkpoint_path,
             )
@@ -203,7 +241,9 @@ def train(
         "model": model_name,
         "seed": int(seed),
         "parameter_count": real_parameter_count(model),
-        "best_validation_loss": best,
+        "training_objective": "architecture_native_normalized_mse",
+        "checkpoint_selection_metric": selection_metric,
+        "best_development_event_macro_physical_h_rmse_m": best,
         "epochs_completed": epochs_completed,
         "checkpoint": checkpoint_path.name,
     }
@@ -211,11 +251,17 @@ def train(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return TrainResult(
-        best_validation_loss=best,
+        best_validation_h_rmse_m=best,
         epochs_completed=epochs_completed,
         parameter_count=int(summary["parameter_count"]),
         checkpoint=checkpoint_path,
     )
 
 
-__all__ = ["TrainResult", "set_seed", "train"]
+__all__ = [
+    "CHECKPOINT_SELECTION_METRIC",
+    "TrainResult",
+    "_event_macro_physical_h_rmse",
+    "set_seed",
+    "train",
+]

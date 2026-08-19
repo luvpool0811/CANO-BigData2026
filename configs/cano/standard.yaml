@@ -9,6 +9,7 @@ model:
   n_freqs_t: 4
   dropout: 0.0
 training:
+  checkpoint_selection_metric: development_event_macro_physical_h_rmse
   seeds: [7, 31, 42]
   max_epochs: 100
   patience: 50

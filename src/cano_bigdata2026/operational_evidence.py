@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -19,6 +20,8 @@ EXPECTED_ROWS = {
     "target_calibration.csv": 4,
     "claim_evidence.csv": 11,
     "baseline_fairness.csv": 4,
+    "hpo_candidates.csv": 24,
+    "reproducibility_scope.csv": 7,
 }
 
 
@@ -72,6 +75,52 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         raise ValueError("baseline fairness system order changed")
     if any(row["test_used_for_selection"].lower() != "false" for row in payload["baseline_fairness.csv"]):
         raise ValueError("evaluation data may not enter setting or checkpoint selection")
+    if any(
+        row["checkpoint_selection"]
+        != "minimum development event-macro physical-H RMSE"
+        for row in payload["baseline_fairness.csv"]
+    ):
+        raise ValueError("checkpoint selection must match the public training code")
+    if any(
+        not row["shared_budget_contract"].strip()
+        or not row["per_update_supervision"].strip()
+        for row in payload["baseline_fairness.csv"]
+    ):
+        raise ValueError("training budget and per-update supervision must be explicit")
+    hpo_rows = payload["hpo_candidates.csv"]
+    expected_systems = ("CANO", "DNO-3", "FNO3D", "U-Net3D")
+    for system in expected_systems:
+        candidates = [row for row in hpo_rows if row["system"] == system]
+        if [int(row["candidate_index"]) for row in candidates] != list(range(6)):
+            raise ValueError(f"{system} must disclose candidates 0 through 5")
+        scores = [_finite(row, "best_development_event_macro_h_rmse_m") for row in candidates]
+        selected = [row for row in candidates if row["selected"].lower() == "true"]
+        if len(selected) != 1:
+            raise ValueError(f"{system} must disclose exactly one selected candidate")
+        winner = min(range(6), key=lambda index: (scores[index], index))
+        if int(selected[0]["candidate_index"]) != winner:
+            raise ValueError(f"{system} selection does not minimize development H-RMSE")
+        if any(int(row["selection_seed"]) != 42 for row in candidates):
+            raise ValueError(f"{system} HPO selection seed changed")
+        for row in candidates:
+            if not isinstance(json.loads(row["model_config"]), dict):
+                raise ValueError("HPO model_config must contain a JSON object")
+    scope_rows = payload["reproducibility_scope.csv"]
+    allowed_levels = {
+        "event-summary recomputation",
+        "paired-event recomputation",
+        "aggregate regeneration",
+        "summary regeneration",
+        "code path only",
+    }
+    if any(row["reproduction_level"] not in allowed_levels for row in scope_rows):
+        raise ValueError("reproducibility scope contains an unknown level")
+    if any(
+        row["statistics_recomputed"].lower() not in {"true", "false"}
+        or row["requires_provider_data_or_checkpoints"].lower() not in {"true", "false"}
+        for row in scope_rows
+    ):
+        raise ValueError("reproducibility scope booleans are invalid")
     return payload
 
 
@@ -141,6 +190,14 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
             "baseline_fairness.csv",
             (("system", "System"), ("candidate_settings", "Candidates"), ("setting_selection_rule", "Setting rule"), ("seeds", "Seeds"), ("total_completed_epochs", "Epochs"), ("total_optimizer_steps", "Optimizer steps"), ("reported_training_hours", "Training hours")),
         ),
+        "hpo_candidates.md": (
+            "hpo_candidates.csv",
+            (("system", "System"), ("candidate_index", "Candidate"), ("model_config", "Configuration"), ("best_development_event_macro_h_rmse_m", "Best development H-RMSE (m)"), ("best_epoch", "Epoch"), ("selected", "Selected")),
+        ),
+        "reproducibility_scope.md": (
+            "reproducibility_scope.csv",
+            (("claim_group", "Claim group"), ("public_evidence", "Public evidence"), ("reproduction_level", "Level"), ("statistics_recomputed", "Statistics recomputed"), ("requires_provider_data_or_checkpoints", "External inputs required"), ("scope", "Scope")),
+        ),
     }
     for filename, (source, columns) in tables.items():
         (output_dir / filename).write_text(
@@ -156,6 +213,8 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         "target_calibration_rows": len(payload["target_calibration.csv"]),
         "claim_rows": len(payload["claim_evidence.csv"]),
         "fairness_rows": len(payload["baseline_fairness.csv"]),
+        "hpo_candidate_rows": len(payload["hpo_candidates.csv"]),
+        "reproducibility_scope_rows": len(payload["reproducibility_scope.csv"]),
         "statistics_recomputed": False,
         "output_dir": str(output_dir),
     }

@@ -3,6 +3,8 @@ model:
   init_features: 16
   include_roughness: true
 training:
+  checkpoint_selection_metric: development_event_macro_physical_h_rmse
+  validation_query_chunk: 32768
   seeds: [7, 31, 42]
   max_epochs: 100
   patience: 50

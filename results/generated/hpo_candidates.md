@@ -1,0 +1,26 @@
+| System | Candidate | Configuration | Best development H-RMSE (m) | Epoch | Selected |
+|---|---|---|---|---|---|
+| CANO | 0 | {"branch_depth":3,"decoder_hidden_dim":96,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":24,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.03253589972651991 | 88 | false |
+| CANO | 1 | {"branch_depth":3,"decoder_hidden_dim":128,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":32,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.027983125906810544 | 99 | false |
+| CANO | 2 | {"branch_depth":4,"decoder_hidden_dim":128,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":32,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.027958559675368557 | 99 | false |
+| CANO | 3 | {"branch_depth":3,"decoder_hidden_dim":128,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":48,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.026227360785945664 | 99 | false |
+| CANO | 4 | {"branch_depth":4,"decoder_hidden_dim":160,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":48,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.024837757836662182 | 97 | false |
+| CANO | 5 | {"branch_depth":4,"decoder_hidden_dim":192,"dropout":0.0,"forcing_hidden_dim":64,"latent_dim":64,"n_freqs_t":4,"n_freqs_xy":8,"n_freqs_z":4} | 0.02218483298782594 | 99 | true |
+| DNO-3 | 0 | {"factor":1,"include_roughness":true,"width":6} | 0.03803342446444522 | 94 | false |
+| DNO-3 | 1 | {"factor":1,"include_roughness":true,"width":7} | 0.03406428368393 | 94 | false |
+| DNO-3 | 2 | {"factor":1,"include_roughness":true,"width":8} | 0.03178403807207894 | 94 | false |
+| DNO-3 | 3 | {"factor":1,"include_roughness":true,"width":9} | 0.030596390714411725 | 93 | false |
+| DNO-3 | 4 | {"factor":1,"include_roughness":true,"width":10} | 0.03075925808168301 | 100 | false |
+| DNO-3 | 5 | {"factor":1,"include_roughness":true,"width":11} | 0.02951381789104591 | 99 | true |
+| FNO3D | 0 | {"include_roughness":true,"modes1":8,"modes2":8,"modes3":8,"width":16} | 0.04445687324801389 | 96 | false |
+| FNO3D | 1 | {"include_roughness":true,"modes1":12,"modes2":12,"modes3":8,"width":16} | 0.03818218229915866 | 96 | false |
+| FNO3D | 2 | {"include_roughness":true,"modes1":8,"modes2":8,"modes3":8,"width":20} | 0.03987475415036082 | 99 | false |
+| FNO3D | 3 | {"include_roughness":true,"modes1":12,"modes2":12,"modes3":8,"width":20} | 0.034843653603449126 | 100 | false |
+| FNO3D | 4 | {"include_roughness":true,"modes1":12,"modes2":12,"modes3":8,"width":24} | 0.030615646048840414 | 99 | true |
+| FNO3D | 5 | {"include_roughness":true,"modes1":16,"modes2":16,"modes3":8,"width":20} | 0.030624356706345786 | 99 | false |
+| U-Net3D | 0 | {"include_roughness":true,"init_features":16} | 0.03862580327212115 | 95 | true |
+| U-Net3D | 1 | {"include_roughness":true,"init_features":20} | 0.048541555243104856 | 92 | false |
+| U-Net3D | 2 | {"include_roughness":true,"init_features":24} | 0.04646035266934339 | 95 | false |
+| U-Net3D | 3 | {"include_roughness":true,"init_features":28} | 0.04072689016435985 | 89 | false |
+| U-Net3D | 4 | {"include_roughness":true,"init_features":32} | 0.04002438206580872 | 89 | false |
+| U-Net3D | 5 | {"include_roughness":true,"init_features":40} | 0.044228858670766494 | 90 | false |

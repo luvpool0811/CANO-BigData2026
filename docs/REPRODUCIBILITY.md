@@ -59,6 +59,37 @@ effect, a 5,000-resample event bootstrap interval (seed 20260731), the exact
 two-sided sign-flip p-value, and Holm adjustment separately within the three
 H-RMSE and three target-WIS families.
 
+## Claim-level reproduction matrix
+
+The machine-readable matrix is `results/paper/reproducibility_scope.csv` and
+its rendered form is `results/generated/reproducibility_scope.md`.
+
+| Level | Meaning |
+|---|---|
+| Event-summary recomputation | Metric means are recomputed from public event rows. |
+| Paired-event recomputation | Effects, intervals, tests, and multiplicity adjustment are recomputed from public event rows. |
+| Summary regeneration | A checked reporting-unit summary is validated and rendered; its bootstrap is not rerun. |
+| Aggregate regeneration | A reported aggregate row is validated and rendered. |
+| Code path only | Provider data or frozen checkpoints are required for paper-scale execution. |
+
+The six paired CANO--baseline contrasts are statistic recomputations. The
+central UFB/UFC/WB2 operational contrasts and target-calibration profiles are
+summary regenerations. The repository does not imply that every paper
+statistic is recomputed from unavailable field arrays.
+
+## Checkpoint and HPO selection
+
+Training optimizes each architecture's native normalized MSE. Checkpoints are
+selected separately using `development_event_macro_physical_h_rmse`: every
+development event, all 24 leads, and every valid cell are evaluated in physical
+metres before event H-RMSE values are averaged. The metric and score are stored
+in `best.pt` and `training_summary.json`.
+
+`results/paper/hpo_candidates.csv` publishes all six seed-42 development-only
+candidates per system, including configuration, best physical H-RMSE, best
+epoch, parameter count, and selected flag. The selected row minimizes the score
+with lower candidate index as the tie-break.
+
 ## Operational-target calibration
 
 `fit_node_scale` computes a lead-by-node RMS residual scale from development
@@ -82,6 +113,12 @@ and trained checkpoints. It validates pairwise-disjoint public aliases before
 data access, rejects observed ID reuse within/across development, calibration,
 and evaluation roles, and reports public aliases plus namespaced event-ID
 digests.
+
+`configs/evaluation/berlin_i_role_membership.csv` expands the 125-row public
+role contract. Run `scripts/validate_public_contract.py --data-root ...` to
+check the prepared 85/15/13/12 counts and event-ID disjointness across all four
+roles. It accesses only each NPZ `event_id` metadata item and emits no provider
+identifiers.
 
 ## Determinism
 

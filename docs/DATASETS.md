@@ -31,9 +31,23 @@ The paper's role contract is recorded in
 events, 13 calibration events, and 12 held-out evaluation events. Keep these
 roles disjoint. The checked-in contract expands 125 role-specific neutral
 aliases and rejects an alias or directory assigned to more than one role. The
+expanded rows are published in
+`configs/evaluation/berlin_i_role_membership.csv`. The
 evidence pipeline additionally rejects repeated observed IDs and emits only
 public aliases plus namespaced SHA-256 digests. It does not redistribute
 provider files or identifiers.
+
+After preparing the NPZ directories, verify the full identity contract with:
+
+```bash
+python scripts/validate_public_contract.py \
+  --data-root /path/to/prepared/berlin-i
+```
+
+The optional check opens only the scalar `event_id` metadata member, validates
+the 85/15/13/12 counts, and rejects duplicates within or across all four roles.
+It does not read `input`, `target`, or `mask` arrays and does not print provider
+event IDs.
 
 Each NPZ file contains:
 

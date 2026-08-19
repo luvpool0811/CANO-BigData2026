@@ -26,7 +26,8 @@ All four models receive the same information:
 - three output variables per lead (H/U/V);
 - identical train, validation, and evaluation event partitions;
 - seeds 7, 31, and 42; and
-- the same optimizer-level settings in the published YAML files.
+- the same candidate, seed, epoch, and optimizer-update budgets in the
+  published YAML files.
 
 The upstream architectures use a one-shot space-time tensor. The adapter maps
 the common tensor `[B,31,H,W]` to `[B,H,W,24,1,6]`, invokes the original model,
@@ -60,6 +61,22 @@ configuration was then trained from scratch for seeds 7, 31, and 42 for 100
 epochs per seed (12,900 optimizer steps per system). Candidate checkpoint
 weights were not imported, and held-out evaluation events were not used for
 setting or checkpoint selection.
+
+The 24 candidate configurations, seed-42 development event-macro physical-H
+RMSE scores, best epochs, and selected rows are public in
+`results/paper/hpo_candidates.csv`. Selection uses the minimum development
+score with lower candidate index as the tie-break.
+
+The FNO3D HPO ledger preserves the requested `modes3: 8` value passed by the
+original search. The pinned upstream class fixes the effective temporal mode
+count to `4`; the selected public YAML records this effective value. This is a
+source-code behavior disclosure, not a change to the evaluated architecture.
+
+Equal optimizer-level budgets do not imply identical label exposure per
+update. CANO uses one sampled lead and at most 4,096 query coordinates per
+event/update. DNO-3, FNO3D, and U-Net3D retain their native dense 24-lead H/U/V
+field supervision. This prevents “same training exposure” from being read more
+broadly than the controlled budget supports.
 
 Measured wall time is included for transparency, but the systems do not share
 identical kernels or memory behavior, so it is not interpreted as a
