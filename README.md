@@ -25,11 +25,14 @@ conda env create -f environment.yml
 conda activate cano-bigdata2026
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 The first command runs a small synthetic optimization smoke test. The second
 rebuilds the public result table and four figures under `results/generated/`.
-Neither command downloads a dataset or requires a GPU.
+The third reproduces the six prespecified paired-event comparisons, including
+bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
+None of these commands downloads a dataset or requires a GPU.
 
 ## Reported results
 
@@ -45,13 +48,38 @@ better.
 | FNO3D (standard objective) | 10.627 | 0.0294 | 0.9396 | 0.9521 | **0.1864** | **0.0157** | 0.0166 |
 | U-Net3D (standard objective) | 5.650 | 0.0380 | 0.8703 | 0.8613 | 0.6357 | 0.0645 | 0.0355 |
 
-The within-model training-objective ablation reduced CANO's event-macro peak
-depth error from 0.3724 m to 0.0380 m. This result uses the same 12 evaluation
-events and therefore motivates confirmation on independent events and
-additional urban domains.
+<p align="center">
+  <img src="results/generated/point_prediction_metrics.png" width="900" alt="Standard-objective point-prediction metrics">
+</p>
+
+### CANO training-objective ablation
+
+The within-model ablation compares the standard objective, a selection-matched
+control, and the peak-aware trajectory objective under the same evaluation
+conditions.
+
+| CANO objective | H RMSE | NSE | Wet RMSE | Wet NSE | Peak error | CSI .01 | CSI .10 | CSI .30 | CSI .50 | Target ACE | Target WIS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Standard objective | 0.0195 | 0.9733 | 0.0236 | 0.9716 | 0.3724 | **0.7640** | 0.8414 | 0.9029 | 0.7678 | 0.0714 | 0.0121 |
+| Selection-matched control | 0.0195 | 0.9732 | 0.0237 | 0.9714 | 0.3728 | 0.7638 | 0.8412 | 0.9027 | 0.7677 | 0.0715 | 0.0121 |
+| Peak-aware trajectory objective | **0.0164** | **0.9798** | **0.0197** | **0.9795** | **0.0380** | 0.7567 | **0.8541** | **0.9295** | **0.8261** | **0.0428** | **0.0074** |
 
 <p align="center">
-  <img src="results/generated/point_prediction_metrics.png" width="780" alt="Point-prediction metrics">
+  <img src="results/generated/cano_objective_ablation.png" width="900" alt="CANO training-objective ablation">
+</p>
+
+The peak-aware trajectory objective reduced CANO's event-macro peak-depth
+error from 0.3724 m to 0.0380 m while increasing NSE and wet-domain NSE. The
+CSI .01 result illustrates that the objective does not improve every metric.
+Because the ablation uses the same 12 evaluation events, confirmation on
+independent events and additional urban domains remains necessary.
+
+The six prespecified paired comparisons are summarized below. All intervals
+exclude zero; exact values and adjusted p-values are provided in the
+[paired-inference table](results/generated/paired_inference.md).
+
+<p align="center">
+  <img src="results/generated/controlled_baseline_effects.png" width="620" alt="CANO relative reductions and paired-bootstrap confidence intervals">
 </p>
 
 Additional public evidence:
@@ -61,7 +89,10 @@ Additional public evidence:
 - [`results/paper/event_level_results.csv`](results/paper/event_level_results.csv):
   anonymized event-level results for the four standard-objective systems;
 - [`results/generated/main_results.md`](results/generated/main_results.md):
-  regenerated full table; and
+  regenerated full table;
+- [`results/generated/paired_inference.md`](results/generated/paired_inference.md):
+  effect sizes, 95% paired-bootstrap intervals, raw exact sign-flip p-values,
+  and Holm-adjusted p-values for the six primary comparisons; and
 - [`results/generated/`](results/generated/): point-prediction, uncertainty,
   event-level, and training-objective plots.
 
@@ -110,6 +141,26 @@ residual quantiles on separate calibration events, and only then evaluate held
 out events. The public functions are `fit_node_scale`,
 `fit_target_aligned_calibrator`, and `evaluate_event`.
 
+To execute the full public evidence chain from three frozen checkpoints:
+
+```bash
+python scripts/run_evidence_pipeline.py \
+  --checkpoints outputs/cano/seed-7/best.pt \
+                outputs/cano/seed-31/best.pt \
+                outputs/cano/seed-42/best.pt \
+  --data-root /path/to/prepared/berlin-i \
+  --normalization /path/to/prepared/berlin-i/normalization.json \
+  --role-config configs/evaluation/berlin_i_roles.yaml \
+  --calibration-config configs/calibration/target_aligned.yaml \
+  --output outputs/cano/evidence.json \
+  --device cuda
+```
+
+This command averages the three seed predictions in physical units, fits the
+node scale on 15 development events, fits calibration on 13 separate events,
+and evaluates 12 held-out events exactly once. The role contract also records
+85 training events. Dataset files remain provider-managed and are not bundled.
+
 ## Run an external baseline
 
 The upstream model code is not copied into this repository. Clone the authors'
@@ -154,11 +205,14 @@ The lightweight release check is deliberately short:
 pytest -q
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 It checks model dimensions, the exact CANO parameter count, adapter tensor
-mapping, metric calculations, CLI behavior, and regeneration of the public
-results. It does not rerun expensive training or open bulk evaluation arrays.
+mapping, metric calculations, paired inference, the complete three-checkpoint
+evidence workflow on synthetic data, CLI behavior, and regeneration of the
+public results. It does not rerun expensive training or open bulk evaluation
+arrays.
 
 ## Citation
 

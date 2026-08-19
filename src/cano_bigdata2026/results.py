@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
 import matplotlib
 
@@ -45,38 +45,57 @@ def _display_label(row: dict[str, str]) -> str:
     }.get(label, label)
 
 
+def _objective_label(row: dict[str, str]) -> str:
+    return {
+        "CANO (standard objective)": "Standard objective",
+        "CANO (selection-matched control)": "Selection-matched control",
+        "CANO (peak-aware objective)": "Peak-aware objective",
+    }.get(row["system"], row["system"])
+
+
+def _bar_color(row: dict[str, str]) -> str:
+    if row.get("comparison") == "cano_ablation":
+        return (
+            "#DD8452"
+            if row["system"] == "CANO (peak-aware objective)"
+            else "#9AA0A6"
+        )
+    return "#2F5597" if row["system"].startswith("CANO") else "#9AA0A6"
+
+
 def _bar_panels(
     rows: list[dict[str, str]],
     metrics: Sequence[str],
     output: Path,
     *,
     title: str,
+    labeler: Callable[[dict[str, str]], str] = _display_label,
 ) -> None:
-    figure, axes = plt.subplots(1, len(metrics), figsize=(4.1 * len(metrics), 3.8))
+    figure, axes = plt.subplots(1, len(metrics), figsize=(4.4 * len(metrics), 4.25))
     if len(metrics) == 1:
         axes = [axes]
-    labels = [_display_label(row) for row in rows]
-    colors = [
-        "#2F5597" if row["system"].startswith("CANO") else "#9AA0A6"
-        for row in rows
-    ]
+    labels = [labeler(row) for row in rows]
+    colors = [_bar_color(row) for row in rows]
     for axis, metric in zip(axes, metrics):
         values = [_float(row, metric) for row in rows]
-        bars = axis.bar(range(len(rows)), values, color=colors)
+        bars = axis.bar(range(len(rows)), values, width=0.68, color=colors)
         axis.set_title(METRIC_LABELS[metric])
         axis.set_xticks(range(len(rows)), labels, rotation=28, ha="right")
         axis.grid(axis="y", alpha=0.25)
         for bar, value in zip(bars, values):
-            axis.text(
-                bar.get_x() + bar.get_width() / 2,
-                bar.get_height(),
+            axis.annotate(
                 f"{value:.4f}",
+                xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                xytext=(0, 7),
+                textcoords="offset points",
                 ha="center",
                 va="bottom",
                 fontsize=8,
             )
+        maximum = max(values)
+        axis.set_ylim(0, maximum * 1.17 if maximum > 0 else 1)
     figure.suptitle(title)
-    figure.tight_layout()
+    figure.tight_layout(rect=(0, 0, 1, 0.95), w_pad=2.2)
     figure.savefig(output, dpi=180, bbox_inches="tight")
     plt.close(figure)
 
@@ -104,20 +123,13 @@ def _event_plot(rows: list[dict[str, str]], output: Path) -> None:
     plt.close(figure)
 
 
-def _markdown(rows: list[dict[str, str]]) -> str:
+def _table_lines(rows: list[dict[str, str]]) -> list[str]:
     header = (
         "| System | Parameters (M) | H RMSE | NSE | Wet RMSE | Wet NSE | "
         "Peak error | CSI .01 | CSI .10 | CSI .30 | CSI .50 | Target ACE | Target WIS |"
     )
     rule = "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
-    lines = [
-        "# Reported results",
-        "",
-        "Event-macro averages over the 12 BerlinI evaluation events.",
-        "",
-        header,
-        rule,
-    ]
+    lines = [header, rule]
     for row in rows:
         lines.append(
             "| {system} | {parameters_m:.3f} | {h_rmse_m:.4f} | {nse:.4f} | "
@@ -132,6 +144,32 @@ def _markdown(rows: list[dict[str, str]]) -> str:
                 },
             )
         )
+    return lines
+
+
+def _markdown(rows: list[dict[str, str]]) -> str:
+    standard = [row for row in rows if row["comparison"] == "standard"]
+    cano_standard = [
+        row for row in standard if row["system"] == "CANO (standard objective)"
+    ]
+    if len(cano_standard) != 1:
+        raise ValueError("expected exactly one CANO standard-objective row")
+    ablation = cano_standard + [
+        row for row in rows if row["comparison"] == "cano_ablation"
+    ]
+    lines = [
+        "# Reported results",
+        "",
+        "Event-macro averages over the 12 BerlinI evaluation events.",
+        "",
+        "## Standard-objective comparison",
+        "",
+        *_table_lines(standard),
+        "",
+        "## CANO training-objective ablation",
+        "",
+        *_table_lines(ablation),
+    ]
     lines.extend(
         [
             "",
@@ -151,7 +189,14 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         _markdown(main_rows), encoding="utf-8"
     )
     standard = [row for row in main_rows if row["comparison"] == "standard"]
-    ablation = [row for row in main_rows if row["comparison"] == "cano_ablation"]
+    cano_standard = [
+        row for row in standard if row["system"] == "CANO (standard objective)"
+    ]
+    if len(cano_standard) != 1:
+        raise ValueError("expected exactly one CANO standard-objective row")
+    ablation = cano_standard + [
+        row for row in main_rows if row["comparison"] == "cano_ablation"
+    ]
     _bar_panels(
         standard,
         ("h_rmse_m", "nse", "wet_nse"),
@@ -169,6 +214,7 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         ("peak_depth_abs_error_m", "nse", "wet_nse"),
         output_dir / "cano_objective_ablation.png",
         title="CANO training-objective ablation",
+        labeler=_objective_label,
     )
     _event_plot(event_rows, output_dir / "event_level_h_rmse.png")
     return {

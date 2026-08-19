@@ -21,9 +21,16 @@ The release scripts expect one compressed NPZ file per event:
 prepared/berlin-i/
 ├── train/*.npz
 ├── validation/*.npz
+├── calibration/*.npz
 ├── test/*.npz
 └── normalization.json
 ```
+
+The paper's role contract is recorded in
+`configs/evaluation/berlin_i_roles.yaml`: 85 training events, 15 development
+events, 13 calibration events, and 12 held-out evaluation events. Keep these
+roles disjoint. The public event-level CSV uses neutral aliases `Event 01`
+through `Event 12`; it does not redistribute provider files or identifiers.
 
 Each NPZ file contains:
 
@@ -47,6 +54,9 @@ physical units during evaluation:
 
 Replace the example values with statistics computed exclusively from the
 training split. Do not recompute them from validation or evaluation events.
+The development split fits the node scale, while the calibration split fits
+normalized residual quantiles. Neither role may be replaced by the held-out
+evaluation split.
 
 ## Converting existing arrays
 
@@ -65,4 +75,3 @@ python scripts/prepare_event_npz.py \
 The utility validates shapes and finite values but does not invent split or
 normalization choices. The UrbanFloodCast repository also provides TIFF-to-PT
 conversion tools for its native release format.
-

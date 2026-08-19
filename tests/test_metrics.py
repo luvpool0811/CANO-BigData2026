@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from cano_bigdata2026 import contracts as C
 from cano_bigdata2026.metrics import event_metrics, interval_metrics
 
 
@@ -29,3 +30,13 @@ def test_interval_metrics() -> None:
     assert np.isclose(result["mean_interval_width"], 0.4)
     assert np.isclose(result["winkler_score"], 0.4)
 
+
+def test_truth_wet_and_operational_thresholds_are_distinct() -> None:
+    assert C.TRUTH_WET_THRESHOLD_M == 0.01
+    assert C.OPERATIONAL_TARGET_THRESHOLD_M == 0.30
+    assert C.WET_THRESHOLD_M == C.TRUTH_WET_THRESHOLD_M
+
+    truth = np.zeros((72, 1, 3), dtype=np.float32)
+    truth.reshape(24, 3, 1, 3)[:, 0, 0] = np.asarray([0.0, 0.02, 0.4])
+    result = event_metrics(truth, truth, np.ones((1, 3), dtype=bool))
+    assert result["n_truth_wet"] == 48

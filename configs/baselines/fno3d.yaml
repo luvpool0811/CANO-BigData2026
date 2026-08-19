@@ -2,7 +2,8 @@ model:
   name: fno3d
   modes1: 12
   modes2: 12
-  modes3: 8
+  # The pinned upstream FNO3d class fixes the temporal mode count to 4.
+  modes3: 4
   width: 24
   include_roughness: true
 training:

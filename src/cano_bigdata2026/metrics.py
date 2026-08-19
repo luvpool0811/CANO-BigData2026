@@ -33,7 +33,7 @@ def event_metrics(
     truth: np.ndarray,
     valid_mask: np.ndarray,
     *,
-    wet_threshold_m: float = C.WET_THRESHOLD_M,
+    wet_threshold_m: float = C.TRUTH_WET_THRESHOLD_M,
     csi_thresholds_m: Iterable[float] = C.CSI_THRESHOLDS_M,
 ) -> dict[str, object]:
     pred = _physical_field(prediction)

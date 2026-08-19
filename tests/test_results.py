@@ -46,7 +46,12 @@ def test_reproduce_public_results(tmp_path: Path) -> None:
     assert result["status"] == "PASS"
     assert result["rows"] == 6
     assert result["event_rows"] == 48
-    assert (tmp_path / "generated/main_results.md").is_file()
+    table = (tmp_path / "generated/main_results.md").read_text(encoding="utf-8")
+    assert "## Standard-objective comparison" in table
+    assert "## CANO training-objective ablation" in table
+    assert table.count("CANO (standard objective)") == 2
+    assert table.count("CANO (selection-matched control)") == 1
+    assert table.count("CANO (peak-aware objective)") == 1
     for name in (
         "point_prediction_metrics.png",
         "uncertainty_metrics.png",
@@ -54,4 +59,3 @@ def test_reproduce_public_results(tmp_path: Path) -> None:
         "event_level_h_rmse.png",
     ):
         assert (tmp_path / "generated" / name).stat().st_size > 1_000
-

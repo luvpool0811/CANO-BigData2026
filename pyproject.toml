@@ -22,6 +22,8 @@ cano-quickstart = "cano_bigdata2026.cli:quickstart_main"
 cano-train = "cano_bigdata2026.cli:train_main"
 cano-evaluate = "cano_bigdata2026.cli:evaluate_main"
 cano-reproduce-results = "cano_bigdata2026.results:main"
+cano-reproduce-inference = "cano_bigdata2026.inference:main"
+cano-evidence-pipeline = "cano_bigdata2026.workflow:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

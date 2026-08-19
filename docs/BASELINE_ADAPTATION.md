@@ -38,10 +38,14 @@ and maps `[B,H,W,24,3]` back to `[B,72,H,W]`.
 |---|---|---:|
 | CANO | latent 64, four branch blocks, decoder width 192 | 276,821 |
 | DNO-3 | width 11, factor 1 | 10,814,514 |
-| FNO3D | modes 12/12/8, width 24 | 10,626,963 |
+| FNO3D | effective modes 12/12/4, width 24 | 10,626,963 |
 | U-Net3D | initial features 16 | 5,649,875 |
 
 These settings are encoded in `configs/`. The adapter is our integration code;
 it is not a redistribution of, or a substitute license for, the upstream
 implementation.
 
+The pinned upstream `FNO3d` class accepts a `modes3` constructor argument but
+sets its effective temporal mode count to `4`. The public configuration records
+that effective value, and the adapter rejects any conflicting value instead of
+silently reporting `12/12/8`.

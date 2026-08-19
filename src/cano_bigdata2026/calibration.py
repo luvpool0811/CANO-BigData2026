@@ -14,6 +14,8 @@ from typing import Iterable
 
 import numpy as np
 
+from . import contracts as C
+
 
 DEFAULT_ALPHA_LEVELS = (0.5, 0.2, 0.1)
 
@@ -48,6 +50,49 @@ def fit_node_scale(
     scale = np.full(prediction.shape[1:], np.nan, dtype=np.float32)
     rms = np.sqrt(np.mean((truth[:, :, mask] - prediction[:, :, mask]) ** 2, axis=0))
     scale[:, mask] = np.maximum(rms, float(floor_m)).astype(np.float32)
+    return scale
+
+
+def _single_h_field(array: np.ndarray, *, label: str) -> np.ndarray:
+    values = np.asarray(array, dtype=np.float64)
+    if values.ndim != 3 or values.shape[0] != 24:
+        raise ValueError(f"{label} must be [24,H,W]")
+    return values
+
+
+def fit_node_scale_events(
+    events: Iterable[tuple[np.ndarray, np.ndarray]],
+    valid_mask: np.ndarray,
+    *,
+    floor_m: float = 1.0e-3,
+) -> np.ndarray:
+    """Fit the development scale without stacking all events in memory."""
+
+    mask = np.asarray(valid_mask, dtype=bool)
+    if mask.ndim != 2 or not np.any(mask) or floor_m <= 0:
+        raise ValueError("a nonempty 2-D mask and positive floor are required")
+    sum_squared: np.ndarray | None = None
+    count = 0
+    for prediction_h, truth_h in events:
+        prediction = _single_h_field(prediction_h, label="prediction_h")
+        truth = _single_h_field(truth_h, label="truth_h")
+        if prediction.shape != truth.shape or prediction.shape[1:] != mask.shape:
+            raise ValueError("development event shapes differ")
+        if not np.isfinite(prediction[:, mask]).all() or not np.isfinite(
+            truth[:, mask]
+        ).all():
+            raise ValueError("development values must be finite on valid cells")
+        if sum_squared is None:
+            sum_squared = np.zeros(prediction.shape, dtype=np.float64)
+        residual = truth - prediction
+        sum_squared[:, mask] += residual[:, mask] ** 2
+        count += 1
+    if count == 0 or sum_squared is None:
+        raise ValueError("at least one development event is required")
+    scale = np.full(sum_squared.shape, np.nan, dtype=np.float32)
+    scale[:, mask] = np.maximum(
+        np.sqrt(sum_squared[:, mask] / count), float(floor_m)
+    ).astype(np.float32)
     return scale
 
 
@@ -130,7 +175,7 @@ def fit_target_aligned_calibrator(
     valid_mask: np.ndarray,
     node_scale_h: np.ndarray,
     *,
-    threshold_m: float = 0.30,
+    threshold_m: float = C.OPERATIONAL_TARGET_THRESHOLD_M,
     alpha_levels: Iterable[float] = DEFAULT_ALPHA_LEVELS,
 ) -> TargetAlignedCalibrator:
     """Fit event-balanced normalized residual quantiles on calibration events."""
@@ -145,16 +190,47 @@ def fit_target_aligned_calibrator(
         raise ValueError("node_scale_h must be [24,H,W]")
     if not np.isfinite(scale[:, mask]).all() or np.any(scale[:, mask] <= 0):
         raise ValueError("node scale must be finite and positive on valid cells")
+    return fit_target_aligned_calibrator_events(
+        zip(prediction, truth, strict=True),
+        mask,
+        scale,
+        threshold_m=threshold_m,
+        alpha_levels=alpha_levels,
+    )
+
+
+def fit_target_aligned_calibrator_events(
+    events: Iterable[tuple[np.ndarray, np.ndarray]],
+    valid_mask: np.ndarray,
+    node_scale_h: np.ndarray,
+    *,
+    threshold_m: float = C.OPERATIONAL_TARGET_THRESHOLD_M,
+    alpha_levels: Iterable[float] = DEFAULT_ALPHA_LEVELS,
+) -> TargetAlignedCalibrator:
+    """Fit event-balanced residual thresholds from a streaming iterator."""
+
+    mask = np.asarray(valid_mask, dtype=bool)
+    scale = np.asarray(node_scale_h, dtype=np.float64)
+    if mask.ndim != 2 or not np.any(mask) or scale.shape != (24, *mask.shape):
+        raise ValueError("node scale must be [24,H,W] on a nonempty 2-D mask")
+    if not np.isfinite(scale[:, mask]).all() or np.any(scale[:, mask] <= 0):
+        raise ValueError("node scale must be finite and positive on valid cells")
     scores: list[np.ndarray] = []
-    for event_prediction, event_truth in zip(prediction, truth, strict=True):
+    for event_prediction, event_truth in events:
+        prediction = _single_h_field(event_prediction, label="prediction_h")
+        truth = _single_h_field(event_truth, label="truth_h")
+        if prediction.shape != truth.shape or prediction.shape[1:] != mask.shape:
+            raise ValueError("calibration event shapes differ")
         selected = operational_population(
-            event_prediction, mask, threshold_m=threshold_m
+            prediction, mask, threshold_m=threshold_m
         )
-        residual = np.abs(event_truth - event_prediction)
+        residual = np.abs(truth - prediction)
         values = residual[selected] / scale[selected]
         if not np.isfinite(values).all():
             raise ValueError("calibration scores must be finite")
         scores.append(np.sort(values))
+    if not scores:
+        raise ValueError("at least one calibration event is required")
     levels = tuple(float(alpha) for alpha in alpha_levels)
     if len(set(levels)) != len(levels) or any(not 0 < alpha < 1 for alpha in levels):
         raise ValueError("alpha levels must be unique and lie in (0,1)")
@@ -221,7 +297,9 @@ __all__ = [
     "DEFAULT_ALPHA_LEVELS",
     "TargetAlignedCalibrator",
     "fit_node_scale",
+    "fit_node_scale_events",
     "operational_population",
     "fit_target_aligned_calibrator",
+    "fit_target_aligned_calibrator_events",
     "evaluate_target_aligned_event",
 ]
