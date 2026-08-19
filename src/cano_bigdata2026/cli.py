@@ -57,7 +57,12 @@ def train_main(argv: Sequence[str] | None = None) -> int:
         json.dumps(
             {
                 "status": "PASS",
-                "best_validation_loss": result.best_validation_loss,
+                "checkpoint_selection_metric": (
+                    "development_event_macro_physical_h_rmse"
+                ),
+                "best_development_event_macro_physical_h_rmse_m": (
+                    result.best_validation_h_rmse_m
+                ),
                 "epochs_completed": result.epochs_completed,
                 "parameter_count": result.parameter_count,
                 "checkpoint": str(result.checkpoint),

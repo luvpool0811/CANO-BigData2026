@@ -16,7 +16,9 @@ submission and provides:
 - adapters to the authors' public DNO-3, FNO3D, and U-Net3D implementations;
 - aggregate and event-level results used in the paper;
 - central operational-reliability, statistical, and baseline-fairness
-  disclosures; and
+  disclosures;
+- all 24 development-only HPO candidates and their selection scores;
+- an explicit 125-row public role-membership contract; and
 - scripts that rebuild the result tables and figures without accessing the
   original evaluation arrays.
 
@@ -34,6 +36,7 @@ python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
 python scripts/reproduce_operational_evidence.py
+python scripts/validate_public_contract.py
 ```
 
 The first command runs a small synthetic optimization smoke test. The second
@@ -42,6 +45,8 @@ The third reproduces the six prespecified paired-event comparisons, including
 bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
 The fourth rebuilds the operational-contrast, target-calibration,
 claim-to-evidence, and baseline-fairness tables plus a central-effect figure.
+The fifth checks the checkpoint-selection metric, HPO winner calculation,
+public role membership, reproduction-level disclosure, and WIS claim scope.
 None of these commands downloads a dataset or requires a GPU.
 
 ## Primary operational-reliability evidence
@@ -65,7 +70,20 @@ cross-domain test.
   prespecification status, and boundary for every principal claim.
 - [`baseline_fairness.csv`](results/paper/baseline_fairness.csv) discloses
   candidate counts, development-only setting selection, seeds, training
-  exposure, and checkpoint selection.
+  budget, architecture-specific per-update supervision, and checkpoint
+  selection.
+- [`hpo_candidates.csv`](results/paper/hpo_candidates.csv) discloses all six
+  candidate configurations, seed-42 development event-macro physical-H RMSE,
+  best epoch, parameter count, and the selected candidate for every system.
+- [`reproducibility_scope.csv`](results/paper/reproducibility_scope.csv)
+  distinguishes statistic recomputation from summary or aggregate
+  regeneration and from code paths requiring provider data or checkpoints.
+
+The UFB/UFC/WB2 operational rows regenerate the paper's figures and tables from
+checked reporting-unit summaries; they do **not** recompute those statistics
+from field arrays. By contrast, the six CANO--baseline paired comparisons are
+recomputed from the 48 public event rows. This distinction is part of the
+public contract rather than an implied end-to-end claim.
 
 See [`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md) for the
 sign-flip assumptions, separate Holm families, and the conditional
@@ -183,6 +201,13 @@ residual quantiles on separate calibration events, and only then evaluate held
 out events. The public functions are `fit_node_scale`,
 `fit_target_aligned_calibrator`, and `evaluate_event`.
 
+The training loss remains each architecture's native normalized MSE. All four
+public training configurations nevertheless select checkpoints by the same
+deterministic criterion used for the reported comparison: the mean physical-H
+RMSE across all development events, all 24 leads, and every valid cell. The
+criterion is recorded as `development_event_macro_physical_h_rmse` in each
+checkpoint and training summary.
+
 To execute the full public evidence chain from three frozen checkpoints:
 
 ```bash
@@ -206,6 +231,18 @@ aliases. During execution it rejects duplicate event identities within or
 across development, calibration, and evaluation roles and records only public
 aliases plus namespaced SHA-256 event-ID digests in the evidence output.
 Dataset files remain provider-managed and are not bundled.
+
+Before a paper-scale run, verify all four prepared split identities without
+opening their field arrays:
+
+```bash
+python scripts/validate_public_contract.py \
+  --data-root /path/to/prepared/berlin-i
+```
+
+The optional data check reads only each NPZ `event_id` metadata item, enforces
+the declared 85/15/13/12 counts, and rejects identity reuse within or across
+training, development, calibration, and evaluation.
 
 ## Run an external baseline
 
@@ -232,6 +269,16 @@ architecture classes, and maps all models to the same 31-channel input and
 [`docs/BASELINE_ADAPTATION.md`](docs/BASELINE_ADAPTATION.md) and the regenerated
 [`baseline fairness table`](results/generated/baseline_fairness.md).
 
+The shared fairness budget means six candidates, seeds 7/31/42, 100 epochs per
+seed, and 12,900 optimizer updates. It does not claim identical label exposure
+per update: CANO samples one lead and at most 4,096 query coordinates, whereas
+the grid baselines use their native dense 24-lead H/U/V field supervision.
+
+Target WIS is a complete-system operational-risk comparison. Each model is
+evaluated on its own prediction-selected population and with its own
+development/calibration fit; it is not a common-population or
+architecture-only causal contrast.
+
 ## Repository layout
 
 ```text
@@ -254,13 +301,15 @@ python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
 python scripts/reproduce_inference.py
 python scripts/reproduce_operational_evidence.py
+python scripts/validate_public_contract.py
 ```
 
 It checks model dimensions, the exact CANO parameter count, adapter tensor
 mapping, metric calculations, paired inference, role identity separation,
 operational disclosure regeneration, the complete three-checkpoint
 evidence workflow on synthetic data, CLI behavior, and regeneration of the
-public results. It does not rerun expensive training or open bulk evaluation
+public results. It also verifies the HPO winner and public split membership.
+It does not rerun expensive training or open bulk evaluation
 arrays.
 
 ## Citation

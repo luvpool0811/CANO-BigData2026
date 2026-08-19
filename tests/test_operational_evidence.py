@@ -18,6 +18,8 @@ def _copy_csvs(source: Path, target: Path) -> None:
         "target_calibration.csv",
         "claim_evidence.csv",
         "baseline_fairness.csv",
+        "hpo_candidates.csv",
+        "reproducibility_scope.csv",
     ):
         (target / name).write_bytes((source / name).read_bytes())
 
@@ -32,6 +34,8 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
         "target_calibration_rows": 4,
         "claim_rows": 11,
         "fairness_rows": 4,
+        "hpo_candidate_rows": 24,
+        "reproducibility_scope_rows": 7,
         "statistics_recomputed": False,
         "output_dir": str(output),
     }
@@ -40,6 +44,8 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
         "target_calibration.md",
         "claim_evidence.md",
         "baseline_fairness.md",
+        "hpo_candidates.md",
+        "reproducibility_scope.md",
         "operational_reliability_effects.png",
     ):
         assert (output / name).stat().st_size > 100
@@ -81,4 +87,25 @@ def test_evaluation_data_cannot_enter_selection(tmp_path: Path) -> None:
         writer.writeheader()
         writer.writerows(rows)
     with pytest.raises(ValueError, match="evaluation data"):
+        validate_operational_inputs(copied)
+
+
+def test_hpo_nonminimum_candidate_is_rejected(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    copied = tmp_path / "paper"
+    _copy_csvs(root / "results/paper", copied)
+    path = copied / "hpo_candidates.csv"
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        fields = reader.fieldnames
+    assert fields is not None
+    for row in rows:
+        if row["system"] == "CANO":
+            row["selected"] = "true" if row["candidate_index"] == "4" else "false"
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="does not minimize"):
         validate_operational_inputs(copied)

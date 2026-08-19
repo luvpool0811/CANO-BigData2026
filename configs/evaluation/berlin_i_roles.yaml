@@ -1,6 +1,7 @@
 dataset: UrbanFloodCast Berlin I
 ensemble_seeds: [7, 31, 42]
 event_id_digest_namespace: CANO-BigData2026/UrbanFloodCast-BerlinI/v1
+public_membership_file: berlin_i_role_membership.csv
 roles:
   training:
     directory: train

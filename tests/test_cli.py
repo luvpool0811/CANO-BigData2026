@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from cano_bigdata2026.cli import evaluate_main, quickstart_main
 from cano_bigdata2026.training import train
@@ -91,6 +92,27 @@ def test_train_and_evaluate_smoke(tmp_path: Path) -> None:
         device="cpu",
     )
     assert trained.checkpoint.is_file()
+    assert np.isfinite(trained.best_validation_h_rmse_m)
+    training_summary = json.loads(
+        (output / "training_summary.json").read_text(encoding="utf-8")
+    )
+    assert (
+        training_summary["checkpoint_selection_metric"]
+        == "development_event_macro_physical_h_rmse"
+    )
+    assert np.isclose(
+        training_summary["best_development_event_macro_physical_h_rmse_m"],
+        trained.best_validation_h_rmse_m,
+    )
+    checkpoint = torch.load(trained.checkpoint, map_location="cpu", weights_only=True)
+    assert (
+        checkpoint["checkpoint_selection_metric"]
+        == "development_event_macro_physical_h_rmse"
+    )
+    assert np.isclose(
+        checkpoint["checkpoint_selection_score"],
+        trained.best_validation_h_rmse_m,
+    )
     metrics = tmp_path / "metrics.json"
     assert (
         evaluate_main(
