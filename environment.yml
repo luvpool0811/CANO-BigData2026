@@ -1,0 +1,16 @@
+name: cano-bigdata2026
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy>=1.24
+  - scipy>=1.10
+  - matplotlib>=3.7
+  - pyyaml>=6.0
+  - pytest>=7.4
+  - pytorch>=2.0
+  - pip
+  - pip:
+      - -e .
