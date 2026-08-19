@@ -110,6 +110,14 @@ python scripts/run_evidence_pipeline.py \
 NSE와 침수영역 NSE는 핵심 점예측 성능지표이며, Target ACE와 Target WIS는
 운영대상 정렬 불확실성 보정을 평가합니다.
 
+6개 사전지정 사건쌍 비교의 상대 감소율과 95% bootstrap 신뢰구간은 아래
+forest plot으로 요약합니다. 모든 구간은 0을 벗어나며 정확한 수치와 보정
+p-value는 [사건쌍 추론표](results/generated/paired_inference.md)에 제공합니다.
+
+<p align="center">
+  <img src="results/generated/controlled_baseline_effects.png" width="620" alt="CANO 상대 감소율과 사건쌍 bootstrap 신뢰구간">
+</p>
+
 ## 짧은 검증
 
 ```bash

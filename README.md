@@ -53,6 +53,14 @@ depth error from 0.3724 m to 0.0380 m. This result uses the same 12 evaluation
 events and therefore motivates confirmation on independent events and
 additional urban domains.
 
+The six prespecified paired comparisons are summarized below. All intervals
+exclude zero; exact values and adjusted p-values are provided in the
+[paired-inference table](results/generated/paired_inference.md).
+
+<p align="center">
+  <img src="results/generated/controlled_baseline_effects.png" width="620" alt="CANO relative reductions and paired-bootstrap confidence intervals">
+</p>
+
 <p align="center">
   <img src="results/generated/point_prediction_metrics.png" width="780" alt="Point-prediction metrics">
 </p>

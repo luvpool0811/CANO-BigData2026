@@ -5,7 +5,11 @@ from pathlib import Path
 
 import numpy as np
 
-from cano_bigdata2026.inference import compute_primary_inference, reproduce_inference
+from cano_bigdata2026.inference import (
+    compute_primary_inference,
+    reduction_rows,
+    reproduce_inference,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,10 +38,14 @@ def test_primary_inference_matches_reported_contrasts() -> None:
 def test_reproduce_inference_outputs(tmp_path: Path) -> None:
     output_csv = tmp_path / "paired.csv"
     output_md = tmp_path / "paired.md"
+    output_pdf = tmp_path / "forest.pdf"
+    output_png = tmp_path / "forest.png"
     result = reproduce_inference(
         event_csv=ROOT / "results/paper/event_level_results.csv",
         output_csv=output_csv,
         output_markdown=output_md,
+        output_figure_pdf=output_pdf,
+        output_figure_png=output_png,
     )
     assert result["status"] == "PASS"
     assert result["contrasts"] == 6
@@ -47,3 +55,16 @@ def test_reproduce_inference_outputs(tmp_path: Path) -> None:
     text = output_md.read_text(encoding="utf-8")
     assert "5,000-replicate paired-event bootstrap" in text
     assert "Holm-adjusted" in text
+    assert output_pdf.stat().st_size > 1_000
+    assert output_png.stat().st_size > 10_000
+
+
+def test_reduction_transform_reverses_interval_bounds() -> None:
+    rows = reduction_rows(
+        compute_primary_inference(ROOT / "results/paper/event_level_results.csv")
+    )
+    first = rows[0]
+    assert first["comparator"] == "DNO-3"
+    assert np.isclose(first["reduction_pct"], 32.307376519397346)
+    assert np.isclose(first["reduction_lower_95_pct"], 27.0106113482621)
+    assert np.isclose(first["reduction_upper_95_pct"], 37.50011558192756)
