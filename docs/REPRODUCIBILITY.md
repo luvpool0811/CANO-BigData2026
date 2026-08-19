@@ -14,7 +14,13 @@
    python scripts/reproduce_results.py
    ```
 
-3. **Train one CANO seed (GPU, prepared UrbanFloodCast data required)**
+3. **Reproduce the six paired-event comparisons (CPU, seconds)**
+
+   ```bash
+   python scripts/reproduce_inference.py
+   ```
+
+4. **Train one CANO seed (GPU, prepared UrbanFloodCast data required)**
 
    ```bash
    python scripts/train.py --config configs/cano/standard.yaml \
@@ -22,7 +28,7 @@
      --output-dir outputs/cano/seed-42 --seed 42 --device cuda
    ```
 
-4. **Train an external model under the common contract**
+5. **Train an external model under the common contract**
 
    Prepare the specified UrbanFloodCast checkout and pass it with
    `--upstream-source`. See `BASELINE_ADAPTATION.md`.
@@ -35,14 +41,32 @@ the standard-objective comparison. The reproduction script reads only these
 small CSV files. It does not claim to retrain models or recalculate metrics from
 bulk arrays.
 
+`reproduce_inference.py` uses the checked-in event rows to reproduce the six
+prespecified CANO-versus-Original comparisons. It reports the paired relative
+effect, a 5,000-resample event bootstrap interval (seed 20260731), the exact
+two-sided sign-flip p-value, and Holm adjustment separately within the three
+H-RMSE and three target-WIS families.
+
 ## Operational-target calibration
 
 `fit_node_scale` computes a lead-by-node RMS residual scale from development
 events. `fit_target_aligned_calibrator` then fits event-balanced, normalized
 residual thresholds on a separate calibration split. The operational cell
 population is selected from the prediction and a 0.30 m threshold; the unknown
-target does not define membership. `evaluate_event` preserves one evidence
-record per physical event before event-macro aggregation.
+target does not define membership. This operational threshold is distinct from
+the model-independent truth-wet mask, which uses $H\geq0.01$ m for wet RMSE and
+wet NSE. `evaluate_event` preserves one evidence record per physical event
+before event-macro aggregation.
+
+## End-to-end evidence workflow
+
+`scripts/run_evidence_pipeline.py` connects exactly three frozen seed
+checkpoints to physical-field ensemble averaging, development-only node-scale
+fitting, calibration-only target-aligned fitting, and one event record per
+held-out evaluation event. The split counts and seed contract are declared in
+`configs/evaluation/berlin_i_roles.yaml`. The unit suite runs this complete
+chain on small synthetic fields; a paper-scale run requires the provider data
+and trained checkpoints.
 
 ## Determinism
 

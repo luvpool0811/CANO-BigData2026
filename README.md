@@ -25,11 +25,14 @@ conda env create -f environment.yml
 conda activate cano-bigdata2026
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 The first command runs a small synthetic optimization smoke test. The second
 rebuilds the public result table and four figures under `results/generated/`.
-Neither command downloads a dataset or requires a GPU.
+The third reproduces the six prespecified paired-event comparisons, including
+bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
+None of these commands downloads a dataset or requires a GPU.
 
 ## Reported results
 
@@ -61,7 +64,10 @@ Additional public evidence:
 - [`results/paper/event_level_results.csv`](results/paper/event_level_results.csv):
   anonymized event-level results for the four standard-objective systems;
 - [`results/generated/main_results.md`](results/generated/main_results.md):
-  regenerated full table; and
+  regenerated full table;
+- [`results/generated/paired_inference.md`](results/generated/paired_inference.md):
+  effect sizes, 95% paired-bootstrap intervals, raw exact sign-flip p-values,
+  and Holm-adjusted p-values for the six primary comparisons; and
 - [`results/generated/`](results/generated/): point-prediction, uncertainty,
   event-level, and training-objective plots.
 
@@ -110,6 +116,26 @@ residual quantiles on separate calibration events, and only then evaluate held
 out events. The public functions are `fit_node_scale`,
 `fit_target_aligned_calibrator`, and `evaluate_event`.
 
+To execute the full public evidence chain from three frozen checkpoints:
+
+```bash
+python scripts/run_evidence_pipeline.py \
+  --checkpoints outputs/cano/seed-7/best.pt \
+                outputs/cano/seed-31/best.pt \
+                outputs/cano/seed-42/best.pt \
+  --data-root /path/to/prepared/berlin-i \
+  --normalization /path/to/prepared/berlin-i/normalization.json \
+  --role-config configs/evaluation/berlin_i_roles.yaml \
+  --calibration-config configs/calibration/target_aligned.yaml \
+  --output outputs/cano/evidence.json \
+  --device cuda
+```
+
+This command averages the three seed predictions in physical units, fits the
+node scale on 15 development events, fits calibration on 13 separate events,
+and evaluates 12 held-out events exactly once. The role contract also records
+85 training events. Dataset files remain provider-managed and are not bundled.
+
 ## Run an external baseline
 
 The upstream model code is not copied into this repository. Clone the authors'
@@ -154,11 +180,14 @@ The lightweight release check is deliberately short:
 pytest -q
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 It checks model dimensions, the exact CANO parameter count, adapter tensor
-mapping, metric calculations, CLI behavior, and regeneration of the public
-results. It does not rerun expensive training or open bulk evaluation arrays.
+mapping, metric calculations, paired inference, the complete three-checkpoint
+evidence workflow on synthetic data, CLI behavior, and regeneration of the
+public results. It does not rerun expensive training or open bulk evaluation
+arrays.
 
 ## Citation
 

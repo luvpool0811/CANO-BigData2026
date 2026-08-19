@@ -1,0 +1,28 @@
+dataset: UrbanFloodCast Berlin I
+ensemble_seeds: [7, 31, 42]
+roles:
+  training:
+    directory: train
+    count: 85
+  development:
+    directory: validation
+    count: 15
+  calibration:
+    directory: calibration
+    count: 13
+  evaluation:
+    directory: test
+    count: 12
+    public_event_aliases:
+      - Event 01
+      - Event 02
+      - Event 03
+      - Event 04
+      - Event 05
+      - Event 06
+      - Event 07
+      - Event 08
+      - Event 09
+      - Event 10
+      - Event 11
+      - Event 12

@@ -251,16 +251,23 @@ def build_upstream_model(
         )
         remainder = None
     elif name == "fno3d":
+        modes3 = int(options.pop("modes3", 4))
+        if modes3 != 4:
+            raise ValueError(
+                "the pinned upstream FNO3d implementation fixes modes3 to 4"
+            )
         core = classes.fno3d(
             num_channels=channels,
             modes1=int(options.pop("modes1", 12)),
             modes2=int(options.pop("modes2", 12)),
-            modes3=int(options.pop("modes3", 8)),
+            modes3=modes3,
             width=int(options.pop("width", 24)),
             initial_step=1,
             time=True,
             time_pad=False,
         )
+        if int(getattr(core, "modes3", modes3)) != modes3:
+            raise ValueError("upstream FNO3d effective modes3 differs from 4")
         remainder = None
     elif name == "unet3d":
         core = classes.unet3d(

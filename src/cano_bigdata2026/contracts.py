@@ -23,7 +23,11 @@ CH_GRID_Y, CH_GRID_X = 5, 6
 CH_RAIN_START = 7
 
 CSI_THRESHOLDS_M = (0.01, 0.10, 0.30, 0.50)
-WET_THRESHOLD_M = 0.30
+# Point-prediction wet metrics use a model-independent truth mask.
+TRUTH_WET_THRESHOLD_M = 0.01
+# Operational-target calibration uses a prediction-defined warning population.
+OPERATIONAL_TARGET_THRESHOLD_M = 0.30
+WET_THRESHOLD_M = TRUTH_WET_THRESHOLD_M
 
 
 def output_channel(lead: int, variable: int) -> int:

@@ -24,11 +24,14 @@ conda env create -f environment.yml
 conda activate cano-bigdata2026
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 첫 명령은 합성 입력을 이용한 소규모 최적화 smoke test이며, 두 번째 명령은
-`results/generated/`에 결과표와 그래프 네 개를 다시 만듭니다. 두 명령 모두
-데이터 다운로드나 GPU를 요구하지 않습니다.
+`results/generated/`에 결과표와 그래프 네 개를 다시 만듭니다. 세 번째 명령은
+6개 사전지정 사건쌍 비교의 효과크기, bootstrap 신뢰구간, exact sign-flip
+p-value와 Holm 보정 p-value를 재현합니다. 세 명령 모두 데이터 다운로드나
+GPU를 요구하지 않습니다.
 
 ## 데이터
 
@@ -76,10 +79,31 @@ FNO3D와 U-Net3D는 각각 `configs/baselines/fno3d.yaml`,
 사건에서, 사건 동일가중 잔차 분위수는 별도 calibration 사건에서 적합한 뒤
 평가 사건에 적용하도록 분리했습니다.
 
+3개 동결 checkpoint에서 전체 증거 사슬을 실행하려면 다음 명령을 사용합니다.
+
+```bash
+python scripts/run_evidence_pipeline.py \
+  --checkpoints outputs/cano/seed-7/best.pt \
+                outputs/cano/seed-31/best.pt \
+                outputs/cano/seed-42/best.pt \
+  --data-root /path/to/prepared/berlin-i \
+  --normalization /path/to/prepared/berlin-i/normalization.json \
+  --role-config configs/evaluation/berlin_i_roles.yaml \
+  --calibration-config configs/calibration/target_aligned.yaml \
+  --output outputs/cano/evidence.json \
+  --device cuda
+```
+
+이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
+노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
+평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
+
 ## 공개 결과
 
 - `results/paper/main_results.csv`: 6개 비교행과 12개 지표
 - `results/paper/event_level_results.csv`: 12개 평가 사건의 익명화 결과
+- `results/generated/paired_inference.md`: 6개 핵심 비교의 효과크기, 95%
+  paired-bootstrap 신뢰구간, raw 및 Holm 보정 p-value
 - `results/generated/`: 표준 목적함수 비교, 불확실성 지표, 사건별 비교,
   CANO 학습 목적함수 절제실험 그래프
 
@@ -92,11 +116,13 @@ NSE와 침수영역 NSE는 핵심 점예측 성능지표이며, Target ACE와 Ta
 pytest -q
 python scripts/quickstart.py --device cpu
 python scripts/reproduce_results.py
+python scripts/reproduce_inference.py
 ```
 
 검증은 모델 크기, adapter 텐서 변환, 지표 계산, CLI 및 공개 결과 재생성을
-수분 이내에 확인하도록 구성했습니다. 학습 전체를 다시 실행하거나 대용량
-평가 배열을 읽는 장시간 감사 절차는 포함하지 않습니다.
+수분 이내에 확인하도록 구성했습니다. 합성 데이터에서는 3개 checkpoint의
+ensemble부터 calibration과 사건별 평가까지도 끝까지 검사합니다. 학습 전체를
+다시 실행하거나 대용량 평가 배열을 읽는 장시간 감사 절차는 포함하지 않습니다.
 
 ## 라이선스
 

@@ -1,5 +1,5 @@
 node_scale:
-  fit_split: inner_select
+  fit_split: development
   floor_m: 0.001
 residual_calibration:
   fit_split: calibration

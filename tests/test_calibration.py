@@ -5,7 +5,9 @@ import numpy as np
 from cano_bigdata2026.calibration import (
     evaluate_target_aligned_event,
     fit_node_scale,
+    fit_node_scale_events,
     fit_target_aligned_calibrator,
+    fit_target_aligned_calibrator_events,
     operational_population,
 )
 from cano_bigdata2026.evidence import evaluate_event
@@ -70,3 +72,17 @@ def test_population_uses_prediction_not_truth() -> None:
         selected,
         operational_population(prediction, mask, threshold_m=0.3),
     )
+
+
+def test_streaming_fit_matches_stacked_fit() -> None:
+    prediction, truth, mask = _fields(5)
+    stacked_scale = fit_node_scale(prediction, truth, mask)
+    streamed_scale = fit_node_scale_events(zip(prediction, truth), mask)
+    assert np.array_equal(stacked_scale, streamed_scale, equal_nan=True)
+    stacked = fit_target_aligned_calibrator(
+        prediction, truth, mask, stacked_scale, threshold_m=-1.0
+    )
+    streamed = fit_target_aligned_calibrator_events(
+        zip(prediction, truth), mask, streamed_scale, threshold_m=-1.0
+    )
+    assert stacked == streamed
