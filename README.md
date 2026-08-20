@@ -47,7 +47,9 @@ bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
 The fourth rebuilds the operational-contrast, target-calibration,
 claim-to-evidence, and baseline-fairness tables plus a central-effect figure.
 The fifth checks the checkpoint-selection metric, HPO winner calculation,
-public role membership, reproduction-level disclosure, and WIS claim scope.
+the checked-in public role ledger, reproduction-level disclosure, and WIS
+claim scope. Exact prepared-data/provider binding is the separate required
+`--data-root` preflight documented below.
 None of these commands downloads a dataset or requires a GPU.
 
 ## Primary operational-reliability evidence
@@ -84,18 +86,36 @@ cross-domain test.
   distinguishes statistic recomputation from summary or aggregate
   regeneration and from code paths requiring provider data or checkpoints.
 
-Exact predictor identities and random-seed roles are centralized in
-[`docs/PREDICTOR_SEED_CONTRACT.md`](docs/PREDICTOR_SEED_CONTRACT.md). In
-particular, the UFC operational questions use a protocol-aligned DNO predictor,
-whereas Table II uses a separate DNO-3 public-core adaptation together with
-CANO, FNO3D, and U-Net3D. The document records the primary, robustness,
-selection, ensemble, and bootstrap seeds without overloading the manuscript.
+### Predictor and evidence hierarchy
 
-The UFB/UFC/WB2 operational rows regenerate the paper's figures and tables from
-checked reporting-unit summaries; they do **not** recompute those statistics
-from field arrays. By contrast, the six CANO--baseline paired comparisons are
-recomputed from the 48 public event rows. This distinction is part of the
-public contract rather than an implied end-to-end claim.
+| Evidence block | Fixed predictor/system | What the evidence supports |
+|---|---|---|
+| UFB California/Tennessee | UFB coordinate-query predictor | Development evidence for the operational contrasts |
+| UFC RQ1--RQ4 and the corresponding Berlin I Table I rows | Protocol-aligned DNO | Prespecified external operational-reliability evidence |
+| WB2 analogous contrasts | Fixed Pangu-Weather forecasts | Cross-domain directional evidence |
+| Table II | CANO, DNO-3, FNO3D, and U-Net3D trained under the common protocol | Supporting controlled comparison of independently calibrated complete systems |
+| CANO objective ablation | CANO standard, matched-control, and peak-aware objectives | Non-confirmatory same-event follow-up |
+
+The protocol-aligned UFC DNO is not Table II's DNO-3 adaptation, and the
+operational RQ values must not be attributed to CANO. Exact predictor identities
+and random-seed roles are centralized in
+[`docs/PREDICTOR_SEED_CONTRACT.md`](docs/PREDICTOR_SEED_CONTRACT.md).
+
+### Public reproduction boundary
+
+- **Statistic recomputation:** Table II means and the six paired CANO--baseline
+  comparisons are recomputed from 48 public event rows.
+- **Checked summary regeneration:** the central UFB/UFC/WB2 contrasts,
+  Fig. 2-style plot, and Table I profiles are validated and regenerated from
+  reporting-unit summaries; their field-array bootstrap is not rerun.
+- **Provider-dependent code path:** paper-scale standard-objective training and
+  evaluation require provider data and checkpoints. The compact package does
+  not reproduce the protocol-aligned DNO, UFB/WB2 operational analyses, or
+  peak-aware training end to end.
+
+This distinction is a public contract, not an implied claim that every paper
+statistic is recomputed from redistributed field arrays. The machine-readable
+scope is [`reproducibility_scope.csv`](results/paper/reproducibility_scope.csv).
 
 See [`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md) for the
 sign-flip assumptions, separate Holm families, and the conditional
@@ -220,7 +240,19 @@ RMSE across all development events, all 24 leads, and every valid cell. The
 criterion is recorded as `development_event_macro_physical_h_rmse` in each
 checkpoint and training summary.
 
-To execute the full public evidence chain from three frozen checkpoints:
+Provider identity is validated as a separate, required preflight for a
+paper-scale run. It compares all 125 prepared identities with the public
+85/15/13/12 role ledger while opening only `event_id`,
+`provider_event_name`, and `provider_relative_path` metadata—not `input`,
+`target`, or `mask`:
+
+```bash
+python scripts/validate_public_contract.py \
+  --data-root /path/to/prepared/berlin-i
+```
+
+After this check passes, execute the full public evidence chain from three
+frozen checkpoints:
 
 ```bash
 python scripts/run_evidence_pipeline.py \
@@ -238,28 +270,20 @@ python scripts/run_evidence_pipeline.py \
 This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
-85 training events. Before data access, it validates 125 unique public role
-aliases and their exact provider event-name/archive-directory assignments.
-During execution it rejects duplicate event identities within or across
-development, calibration, and evaluation roles and records only public aliases
-plus namespaced event-ID digests in the evidence output.
-Dataset files remain provider-managed and are not bundled.
-
-Before a paper-scale run, verify all four prepared split identities without
-opening their field arrays:
-
-```bash
-python scripts/validate_public_contract.py \
-  --data-root /path/to/prepared/berlin-i
-```
+85 training events. The evidence command itself validates the public alias and
+role structure, rejects duplicate event identities within or across
+development, calibration, and evaluation roles, and records only public
+aliases plus namespaced event-ID digests. It does **not** independently bind
+the prepared files to all 125 provider event-name/archive-directory rows;
+that binding is the required preflight above. Dataset files remain
+provider-managed and are not bundled.
 
 Each NPZ must carry the `provider_event_name` and `provider_relative_path`
 metadata declared by
 [`berlin_i_role_membership.csv`](configs/evaluation/berlin_i_role_membership.csv).
-The optional data check compares all 125 identities exactly while leaving
-`input`, `target`, and `mask` unopened. If the original provider ZIP is
-available, its central directory can be checked directly—without opening
-payload members—with:
+The prepared-data preflight compares all 125 identities exactly. If the
+original provider ZIP is available, its central directory can additionally be
+checked directly—without opening payload members—with:
 
 ```bash
 python scripts/validate_public_contract.py \

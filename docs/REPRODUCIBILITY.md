@@ -131,6 +131,11 @@ scalar identity metadata. With `--provider-archive ...`, it independently
 matches all 125 directories from the ZIP central directory without opening a
 payload member.
 
+The `--data-root` validation is a required preflight for a paper-scale evidence
+run. `run_evidence_pipeline.py` validates alias structure and observed
+development/calibration/evaluation ID separation, but it does not itself bind
+all prepared files to the 125 provider event-name/archive-directory records.
+
 ## Determinism
 
 Training seeds are explicit in every command and configuration. CUDA kernels
