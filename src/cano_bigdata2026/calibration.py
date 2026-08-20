@@ -169,6 +169,95 @@ class TargetAlignedCalibrator:
         return prediction - halfwidth, prediction + halfwidth
 
 
+@dataclass(frozen=True)
+class EventBalancedCRCThreshold:
+    """Finite-sample CRC threshold for bounded event-mean miscoverage."""
+
+    alpha: float
+    bound: float
+    q: float
+    empirical_event_risk: float | None
+    corrected_event_risk: float | None
+    maximum_empirical_event_risk: float
+    n_calibration_events: int
+    infinite_fallback: bool
+
+
+def crc_maximum_empirical_event_risk(
+    n_calibration_events: int,
+    alpha: float,
+    *,
+    bound: float = 1.0,
+) -> float:
+    """Return the largest empirical risk allowed by the CRC correction.
+
+    For bounded event loss in ``[0, bound]``, CRC uses
+    ``R_plus = n/(n+1) * R_hat + bound/(n+1)``. The returned value is the
+    corresponding upper limit on ``R_hat``.
+    """
+
+    n = int(n_calibration_events)
+    if n < 1:
+        raise ValueError("at least one calibration event is required")
+    if not 0.0 < float(alpha) < float(bound):
+        raise ValueError("alpha must lie strictly between zero and bound")
+    return (float(alpha) * (n + 1.0) - float(bound)) / n
+
+
+def fit_event_balanced_crc(
+    event_residual_scores: Iterable[np.ndarray],
+    *,
+    alpha: float,
+    bound: float = 1.0,
+) -> EventBalancedCRCThreshold:
+    """Fit the smallest event-balanced residual threshold satisfying CRC.
+
+    Each input array contains normalized absolute residuals for one nonempty
+    calibration event on a population selected without target information.
+    Empty events are excluded symmetrically. This exposes the finite-sample
+    fitting path; the checked-in Table I values remain frozen summary records
+    because provider fields are not redistributed.
+    """
+
+    events: list[np.ndarray] = []
+    for raw in event_residual_scores:
+        values = np.asarray(raw, dtype=np.float64).reshape(-1)
+        if values.size == 0:
+            continue
+        if not np.isfinite(values).all() or np.any(values < 0.0):
+            raise ValueError("CRC residual scores must be finite and nonnegative")
+        events.append(np.sort(values))
+    if not events:
+        raise ValueError("at least one nonempty calibration event is required")
+
+    n = len(events)
+    limit = crc_maximum_empirical_event_risk(n, alpha, bound=bound)
+    if limit < 0.0:
+        return EventBalancedCRCThreshold(
+            alpha=float(alpha),
+            bound=float(bound),
+            q=float("inf"),
+            empirical_event_risk=None,
+            corrected_event_risk=None,
+            maximum_empirical_event_risk=limit,
+            n_calibration_events=n,
+            infinite_fallback=True,
+        )
+
+    q, empirical_risk = _event_balanced_quantile(events, limit)
+    corrected_risk = n / (n + 1.0) * empirical_risk + float(bound) / (n + 1.0)
+    return EventBalancedCRCThreshold(
+        alpha=float(alpha),
+        bound=float(bound),
+        q=float(q),
+        empirical_event_risk=float(empirical_risk),
+        corrected_event_risk=float(corrected_risk),
+        maximum_empirical_event_risk=limit,
+        n_calibration_events=n,
+        infinite_fallback=False,
+    )
+
+
 def fit_target_aligned_calibrator(
     predictions_h: np.ndarray,
     truths_h: np.ndarray,
@@ -295,7 +384,10 @@ def evaluate_target_aligned_event(
 
 __all__ = [
     "DEFAULT_ALPHA_LEVELS",
+    "EventBalancedCRCThreshold",
     "TargetAlignedCalibrator",
+    "crc_maximum_empirical_event_risk",
+    "fit_event_balanced_crc",
     "fit_node_scale",
     "fit_node_scale_events",
     "operational_population",

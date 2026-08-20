@@ -44,8 +44,9 @@ The first command runs a small synthetic optimization smoke test. The second
 rebuilds the public result table and four figures under `results/generated/`.
 The third reproduces the six prespecified paired-event comparisons, including
 bootstrap confidence intervals, exact sign-flip tests, and Holm adjustment.
-The fourth rebuilds the operational-contrast, target-calibration,
-claim-to-evidence, and baseline-fairness tables plus a central-effect figure.
+The fourth rebuilds the operational-contrast, empirical/CRC calibration,
+deployment-boundary, claim-to-evidence, and baseline-fairness tables plus the
+central-effect and RQ3/RQ4 figures.
 The fifth checks the checkpoint-selection metric, HPO winner calculation,
 the checked-in public role ledger, reproduction-level disclosure, and WIS
 claim scope. Exact prepared-data/provider binding is the separate required
@@ -71,7 +72,16 @@ cross-domain test.
   interval rule, calibration/evaluation roles, reporting unit, estimand,
   resampling, and admissible claim.
 - [`target_calibration.csv`](results/paper/target_calibration.csv) reproduces
-  the four Table I setting profiles.
+  the four empirical-calibration rows in Table I Panel A.
+- [`crc_calibration.csv`](results/paper/crc_calibration.csv) exposes the two
+  finite-sample CRC rows in Table I Panel B, including the corrected empirical
+  event-risk limit and stored event-bootstrap ACE interval.
+- [`deployment_budget_effects.csv`](results/paper/deployment_budget_effects.csv)
+  contains the nine budget/prevalence points and stored intervals in Fig. 3(a).
+- [`warning_rule_migration.csv`](results/paper/warning_rule_migration.csv)
+  contains all 36 Fig. 3(b) cells together with the observed winner loss and
+  runner-up gap. These are descriptive event-level rankings, not inferential
+  policy-superiority claims.
 - [`claim_evidence.csv`](results/paper/claim_evidence.csv) states the estimand,
   unit, resampling, calibrator treatment, multiplicity family,
   prespecification status, and boundary for every principal claim.
@@ -85,6 +95,10 @@ cross-domain test.
 - [`reproducibility_scope.csv`](results/paper/reproducibility_scope.csv)
   distinguishes statistic recomputation from summary or aggregate
   regeneration and from code paths requiring provider data or checkpoints.
+
+<p align="center">
+  <img src="results/generated/deployment_boundaries.png" width="900" alt="Budget-dependent forcing effects and warning-rule migration">
+</p>
 
 ### Predictor and evidence hierarchy
 
@@ -106,8 +120,9 @@ and random-seed roles are centralized in
 - **Statistic recomputation:** Table II means and the six paired CANO--baseline
   comparisons are recomputed from 48 public event rows.
 - **Checked summary regeneration:** the central UFB/UFC/WB2 contrasts,
-  Fig. 2-style plot, and Table I profiles are validated and regenerated from
-  reporting-unit summaries; their field-array bootstrap is not rerun.
+  Fig. 2-style plot, Table I Panels A/B, and Fig. 3 deployment boundaries are
+  validated and regenerated from reporting-unit summaries; their field-array
+  bootstrap is not rerun.
 - **Provider-dependent code path:** paper-scale standard-objective training and
   evaluation require provider data and checkpoints. The compact package does
   not reproduce the protocol-aligned DNO, UFB/WB2 operational analyses, or
@@ -232,6 +247,11 @@ Fit the node scale on development events, fit the event-balanced normalized
 residual quantiles on separate calibration events, and only then evaluate held
 out events. The public functions are `fit_node_scale`,
 `fit_target_aligned_calibrator`, and `evaluate_event`.
+For finite-sample CRC, `crc_maximum_empirical_event_risk` exposes the bounded
+event-loss correction and `fit_event_balanced_crc` fits the corresponding
+event-balanced residual threshold. The checked-in CRC table remains an
+explicit summary regeneration because provider field arrays are not
+redistributed.
 
 The training loss remains each architecture's native normalized MSE. All four
 public training configurations nevertheless select checkpoints by the same

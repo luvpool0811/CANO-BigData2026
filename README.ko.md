@@ -39,8 +39,8 @@ python scripts/validate_public_contract.py
 `results/generated/`에 결과표와 그래프 네 개를 다시 만듭니다. 세 번째 명령은
 6개 사전지정 사건쌍 비교의 효과크기, bootstrap 신뢰구간, exact sign-flip
 p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 운영대상
-contrast, target calibration, 주장-근거, baseline 공정성 표와 중심 효과 그림을
-재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 저장소에 포함된
+contrast, 경험적/CRC 보정, 배포경계, 주장-근거, baseline 공정성 표와 Fig. 2/3
+형식 그림을 재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 저장소에 포함된
 공개 역할 ledger, 재현 수준, WIS 해석 범위를 검사합니다. prepared data와 provider
 identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도로 검사합니다.
 모든 명령은 데이터 다운로드나 GPU를 요구하지 않습니다.
@@ -56,7 +56,13 @@ identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도�
 - `results/paper/operational_evaluation_specification.csv`: Berlin I RQ1의
   고정 predictor/archive, 모집단, interval rule, 보정·평가 역할, 보고 단위,
   estimand, bootstrap, 허용 주장까지 한 행에 정리한 완전한 평가 명세
-- `results/paper/target_calibration.csv`: 논문 Table I의 4개 설정
+- `results/paper/target_calibration.csv`: 논문 Table I Panel A의 4개 경험적 보정 설정
+- `results/paper/crc_calibration.csv`: Table I Panel B의 Berlin I/II 유한표본 CRC
+  요약, 보정된 허용 사건위험과 저장된 ACE 신뢰구간
+- `results/paper/deployment_budget_effects.csv`: Fig. 3(a)의 예산/발생률 점과
+  저장된 신뢰구간 9개
+- `results/paper/warning_rule_migration.csv`: Fig. 3(b)의 36개 기술적 최저손실
+  전략, 관측 손실과 차순위 격차. 이는 정책 우월성에 대한 추론 검정이 아닙니다.
 - `results/paper/claim_evidence.csv`: 주장별 추정대상, 독립 단위, 재표집,
   calibrator 처리, 다중검정, 사전지정 여부, 해석 경계
 - `results/paper/baseline_fairness.csv`: 후보 설정, 개발자료 선택 규칙, seed,
@@ -65,6 +71,10 @@ identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도�
   seed-42 개발 사건-매크로 physical-H RMSE, best epoch와 선택 결과
 - `results/paper/reproducibility_scope.csv`: 사건행 기반 통계 재계산, 요약값 기반
   재생성, provider data/checkpoint가 필요한 코드 경로의 구분
+
+<p align="center">
+  <img src="results/generated/deployment_boundaries.png" width="900" alt="예산별 강우정보 효과와 경보전략 이동">
+</p>
 
 ### 예측기와 근거의 위계
 
@@ -84,9 +94,9 @@ UFC 운영 분석의 프로토콜 정렬 DNO는 Table II의 DNO-3 adaptation이 
 
 - **통계 재계산:** Table II 평균과 CANO--baseline 사건쌍 비교 6개는 공개된
   48개 사건행에서 다시 계산합니다.
-- **검증된 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림과 Table I은
-  보고 단위 요약값을 검증하고 재생성하며, field-array bootstrap은 다시 실행하지
-  않습니다.
+- **검증된 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림, Table I
+  Panel A/B와 Fig. 3 배포경계는 보고 단위 요약값을 검증하고 재생성하며,
+  field-array bootstrap은 다시 실행하지 않습니다.
 - **provider 의존 코드 경로:** 논문 규모 표준 목적함수 학습·평가는 provider data와
   checkpoint가 필요합니다. compact package는 프로토콜 정렬 DNO, UFB/WB2 운영
   분석 또는 peak-aware 학습을 end-to-end로 재현하지 않습니다.
@@ -157,6 +167,10 @@ population의 architecture-only 인과 비교가 아닙니다.
 `configs/calibration/target_aligned.yaml`에 있습니다. 노드별 scale은 개발
 사건에서, 사건 동일가중 잔차 분위수는 별도 calibration 사건에서 적합한 뒤
 평가 사건에 적용하도록 분리했습니다.
+유한표본 CRC는 `crc_maximum_empirical_event_risk`로 사건손실 보정 한계를
+계산하고 `fit_event_balanced_crc`로 사건균등 잔차 임계값을 적합할 수 있습니다.
+다만 provider field array를 재배포하지 않으므로 논문의 CRC 표는 명시적으로
+요약 재생성 범위에 머뭅니다.
 
 논문 규모 실행에서는 provider identity 검사를 별도의 필수 preflight로 먼저
 수행합니다. 이 검사는 `input`, `target`, `mask`를 열지 않고 `event_id`,

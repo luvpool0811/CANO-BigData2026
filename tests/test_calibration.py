@@ -3,7 +3,9 @@ from __future__ import annotations
 import numpy as np
 
 from cano_bigdata2026.calibration import (
+    crc_maximum_empirical_event_risk,
     evaluate_target_aligned_event,
+    fit_event_balanced_crc,
     fit_node_scale,
     fit_node_scale_events,
     fit_target_aligned_calibrator,
@@ -86,3 +88,24 @@ def test_streaming_fit_matches_stacked_fit() -> None:
         zip(prediction, truth), mask, streamed_scale, threshold_m=-1.0
     )
     assert stacked == streamed
+
+
+def test_event_balanced_crc_exposes_finite_sample_correction() -> None:
+    scores = tuple(
+        np.asarray([0.1, 0.2 + 0.1 * index, 0.8 + 0.1 * index])
+        for index in range(13)
+    )
+    fitted = fit_event_balanced_crc(scores, alpha=0.1)
+    assert fitted.n_calibration_events == 13
+    assert np.isclose(fitted.maximum_empirical_event_risk, 0.4 / 13.0)
+    assert fitted.infinite_fallback is False
+    assert fitted.empirical_event_risk <= fitted.maximum_empirical_event_risk + 1e-12
+    assert fitted.corrected_event_risk <= 0.1 + 1e-12
+
+
+def test_event_balanced_crc_reports_uninformative_small_sample_fallback() -> None:
+    fitted = fit_event_balanced_crc([np.asarray([0.1, 0.2])], alpha=0.1)
+    assert fitted.infinite_fallback is True
+    assert np.isinf(fitted.q)
+    assert fitted.empirical_event_risk is None
+    assert crc_maximum_empirical_event_risk(1, 0.1) < 0.0

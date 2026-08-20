@@ -47,10 +47,12 @@ the standard-objective comparison. The reproduction script reads only these
 small CSV files. It does not claim to retrain models or recalculate metrics from
 bulk arrays.
 
-`operational_contrasts.csv` and `target_calibration.csv` are the compact source
-tables for the paper's central Fig. 2/Table I evidence. They contain only
-reporting-unit summaries and no field arrays. `claim_evidence.csv` and
-`baseline_fairness.csv` expose the statistical and training-design disclosures
+`operational_contrasts.csv`, `target_calibration.csv`, and
+`crc_calibration.csv` are the compact source tables for the paper's central
+Fig. 2/Table I evidence. `deployment_budget_effects.csv` and
+`warning_rule_migration.csv` expose the rows rendered in Fig. 3. These files
+contain reporting-unit summaries and no field arrays. `claim_evidence.csv` and
+`baseline_fairness.csv` expose statistical and training-design disclosures
 that are easy to miss in the page-limited manuscript.
 
 `operational_evaluation_specification.csv` closes the central Berlin I RQ1
@@ -81,9 +83,11 @@ its rendered form is `results/generated/reproducibility_scope.md`.
 | Code path only | Provider data or frozen checkpoints are required for paper-scale execution. |
 
 The six paired CANO--baseline contrasts are statistic recomputations. The
-central UFB/UFC/WB2 operational contrasts and target-calibration profiles are
-summary regenerations. The repository does not imply that every paper
-statistic is recomputed from unavailable field arrays.
+central UFB/UFC/WB2 operational contrasts, target-calibration profiles, CRC
+sensitivity rows, and deployment-boundary records are summary regenerations.
+The fitting code for empirical event-balanced calibration and finite-sample
+CRC is public, but the repository does not imply that every paper statistic is
+recomputed from unavailable provider field arrays.
 
 ## Checkpoint and HPO selection
 
@@ -108,6 +112,27 @@ target does not define membership. This operational threshold is distinct from
 the model-independent truth-wet mask, which uses $H\geq0.01$ m for wet RMSE and
 wet NSE. `evaluate_event` preserves one evidence record per physical event
 before event-macro aggregation.
+
+## Finite-sample CRC
+
+`crc_maximum_empirical_event_risk` implements the bounded-loss correction
+\(\widehat R\leq[\alpha(n+1)-1]/n\), and `fit_event_balanced_crc` fits the
+smallest normalized-residual threshold satisfying the corrected event-mean
+risk constraint. Both functions operate on one residual-score array per
+nonempty calibration event and are unit-tested, including the uninformative
+small-sample fallback. `crc_calibration.csv` contains the two frozen Table I
+Panel B reporting-unit summaries; `reproduce_operational_evidence.py` validates
+and renders them without claiming to rerun their event bootstrap.
+
+## Deployment-boundary disclosures
+
+`deployment_budget_effects.csv` records the RQ3 budget/prevalence coordinates,
+effects, and stored confidence intervals. `warning_rule_migration.csv` records
+the complete RQ4 threshold-by-cost grids and the observed lowest-loss strategy
+for each cell. `reproduce_operational_evidence.py` validates both sources and
+regenerates `deployment_boundaries.pdf` and `deployment_boundaries.png`. The
+warning-rule heatmaps are descriptive test-event rankings, not inferential
+comparisons.
 
 ## End-to-end evidence workflow
 

@@ -28,7 +28,7 @@ def test_checked_in_public_contract() -> None:
         "provider_identity_rows": 125,
         "operational_specification_rows": 1,
         "hpo_candidate_rows": 24,
-        "reproducibility_scope_rows": 7,
+        "reproducibility_scope_rows": 9,
         "table_ii_event_rows_recomputed": 48,
         "table_ii_metrics_recomputed": 7,
         "raw_field_arrays_opened": 0,

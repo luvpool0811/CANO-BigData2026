@@ -13,16 +13,32 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 
 EXPECTED_ROWS = {
     "operational_contrasts.csv": 6,
     "operational_evaluation_specification.csv": 1,
     "target_calibration.csv": 4,
-    "claim_evidence.csv": 11,
+    "crc_calibration.csv": 2,
+    "deployment_budget_effects.csv": 9,
+    "warning_rule_migration.csv": 36,
+    "claim_evidence.csv": 14,
     "baseline_fairness.csv": 4,
     "hpo_candidates.csv": 24,
-    "reproducibility_scope.csv": 7,
+    "reproducibility_scope.csv": 9,
+}
+
+WARNING_CODES = {
+    "global": "Gl",
+    "lead": "Ld",
+    "magnitude": "Mg",
+    "local_quantile": "Nl",
+    "node_local": "Nl",
+    "normalized_cp": "Nn",
+    "node_normalized": "Nn",
+    "severity_norm": "Ts",
+    "train_severity": "Ts",
 }
 
 
@@ -134,6 +150,77 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
     settings = [row["setting"] for row in payload["target_calibration.csv"]]
     if settings != ["California", "Tennessee", "Berlin I", "Berlin II"]:
         raise ValueError("target-calibration setting order changed")
+    crc_rows = payload["crc_calibration.csv"]
+    if [row["setting"] for row in crc_rows] != ["Berlin I", "Berlin II"]:
+        raise ValueError("CRC setting order changed")
+    for row in crc_rows:
+        n = int(row["calibration_events"])
+        alpha = _finite(row, "miscoverage_alpha")
+        limit = _finite(row, "maximum_empirical_event_risk")
+        expected_limit = (alpha * (n + 1) - 1.0) / n
+        if abs(limit - expected_limit) > 1e-15:
+            raise ValueError("CRC finite-sample correction changed")
+        point = _finite(row, "delta_ace")
+        lower = _finite(row, "delta_ace_ci_lower")
+        upper = _finite(row, "delta_ace_ci_upper")
+        if not lower <= point <= upper:
+            raise ValueError("CRC confidence interval does not contain its point")
+        if row["statistics_recomputed"].lower() != "false":
+            raise ValueError("public CRC records are frozen summary regeneration")
+
+    budget_rows = payload["deployment_budget_effects.csv"]
+    if [row["record_id"] for row in budget_rows] != [
+        "ufc_berlin_i_b05",
+        "ufc_berlin_i_b10",
+        "ufc_berlin_i_b20",
+        "ufc_berlin_i_b30",
+        "ufc_berlin_i_b50",
+        "ufc_berlin_ii_b05",
+        "ufc_berlin_ii_mid",
+        "ufb_california_mid",
+        "ufb_tennessee_mid",
+    ]:
+        raise ValueError("deployment-budget record order changed")
+    for row in budget_rows:
+        budget = _finite(row, "budget_fraction")
+        prevalence = _finite(row, "prevalence")
+        kappa = _finite(row, "kappa")
+        point = _finite(row, "effect")
+        lower = _finite(row, "ci_lower")
+        upper = _finite(row, "ci_upper")
+        if prevalence <= 0.0 or abs(kappa - budget / prevalence) > 1e-12:
+            raise ValueError("deployment kappa does not equal budget/prevalence")
+        if not lower <= point <= upper:
+            raise ValueError("deployment confidence interval does not contain its point")
+        if int(row["n_units"]) < 2 or row["statistics_recomputed"].lower() != "false":
+            raise ValueError("deployment summary contract changed")
+
+    warning_rows = payload["warning_rule_migration.csv"]
+    expected_grids = {
+        ("UFB", "California"): ({0.3, 0.5, 1.0}, {2, 5, 10, 20, 50, 100}),
+        ("UFC", "Berlin I"): ({0.1, 0.3, 0.5}, {2, 5, 10, 20, 50, 100}),
+    }
+    for identity, (thresholds, costs) in expected_grids.items():
+        selected = [
+            row
+            for row in warning_rows
+            if (row["benchmark"], row["setting"]) == identity
+        ]
+        observed = {
+            (_finite(row, "H_m"), int(row["miss_to_false_alarm_ratio"]))
+            for row in selected
+        }
+        expected = {(threshold, cost) for threshold in thresholds for cost in costs}
+        if observed != expected or len(selected) != len(expected):
+            raise ValueError(f"warning-rule grid changed for {identity}")
+    for row in warning_rows:
+        strategy = row["winner_strategy"]
+        if WARNING_CODES.get(strategy) != row["winner_code"]:
+            raise ValueError("warning-rule code does not match its strategy")
+        if _finite(row, "winner_loss") < 0.0 or _finite(row, "runner_up_loss_gap") < 0.0:
+            raise ValueError("warning loss and runner-up gap must be nonnegative")
+        if row["interpretation"] != "descriptive test-event ranking":
+            raise ValueError("warning-rule ranking lost its descriptive boundary")
     claims = payload["claim_evidence.csv"]
     if len({row["claim_id"] for row in claims}) != len(claims):
         raise ValueError("claim identifiers must be unique")
@@ -238,6 +325,108 @@ def _effect_plot(rows: Sequence[Mapping[str, str]], output: Path) -> None:
     plt.close(figure)
 
 
+def _deployment_plot(
+    budget_rows: Sequence[Mapping[str, str]],
+    warning_rows: Sequence[Mapping[str, str]],
+    output_dir: Path,
+) -> None:
+    """Regenerate the paper's two-panel RQ3/RQ4 summary from public rows."""
+
+    figure = plt.figure(figsize=(11.8, 5.4))
+    grid = figure.add_gridspec(2, 2, width_ratios=(1.45, 1.0), hspace=0.48)
+    budget_axis = figure.add_subplot(grid[:, 0])
+    styles = {
+        ("UFC", "Berlin I"): ("#2F5597", "o", "UFC Berlin I"),
+        ("UFC", "Berlin II"): ("#C54A45", "s", "UFC Berlin II"),
+        ("UFB", "California"): ("#4C8B3B", "^", "UFB California"),
+        ("UFB", "Tennessee"): ("#D9822B", "D", "UFB Tennessee"),
+    }
+    for identity, (color, marker, label) in styles.items():
+        rows = [
+            row
+            for row in budget_rows
+            if (row["benchmark"], row["setting"]) == identity
+        ]
+        x = [float(row["kappa"]) for row in rows]
+        y = [float(row["effect"]) for row in rows]
+        lower = [float(row["ci_lower"]) for row in rows]
+        upper = [float(row["ci_upper"]) for row in rows]
+        budget_axis.errorbar(
+            x,
+            y,
+            yerr=(
+                [point - lo for point, lo in zip(y, lower, strict=True)],
+                [hi - point for point, hi in zip(y, upper, strict=True)],
+            ),
+            color=color,
+            marker=marker,
+            linestyle="-" if identity == ("UFC", "Berlin I") else "none",
+            capsize=3,
+            linewidth=1.4,
+            label=label,
+        )
+    budget_axis.axhline(0.0, color="#555555", linestyle="--", linewidth=0.8)
+    budget_axis.set_xlabel(r"Normalized budget $\kappa=b/\pi$")
+    budget_axis.set_ylabel(r"Capture difference $\Delta$")
+    budget_axis.set_title("(a) Forcing value over normalized budget")
+    budget_axis.grid(alpha=0.22)
+    budget_axis.legend(fontsize=8, loc="upper right")
+
+    code_order = ("Gl", "Ld", "Mg", "Nl", "Nn", "Ts")
+    palette = ("#D9D9D9", "#C9D7F4", "#BFE7ED", "#C7F2C7", "#F6D9A7", "#F4B8B8")
+    code_index = {code: index for index, code in enumerate(code_order)}
+    cmap = ListedColormap(palette)
+    heatmap_specs = (
+        (("UFB", "California"), (0.3, 0.5, 1.0), "UFB California (development)"),
+        (("UFC", "Berlin I"), (0.1, 0.3, 0.5), "UFC Berlin I (external evaluation)"),
+    )
+    costs = (2, 5, 10, 20, 50, 100)
+    for row_index, (identity, thresholds, title) in enumerate(heatmap_specs):
+        axis = figure.add_subplot(grid[row_index, 1])
+        selected = {
+            (float(row["H_m"]), int(row["miss_to_false_alarm_ratio"])): row
+            for row in warning_rows
+            if (row["benchmark"], row["setting"]) == identity
+        }
+        matrix = [
+            [code_index[selected[(threshold, cost)]["winner_code"]] for cost in costs]
+            for threshold in thresholds
+        ]
+        axis.imshow(matrix, cmap=cmap, vmin=-0.5, vmax=len(code_order) - 0.5, aspect="auto")
+        for y_index, threshold in enumerate(thresholds):
+            for x_index, cost in enumerate(costs):
+                row = selected[(threshold, cost)]
+                axis.text(
+                    x_index,
+                    y_index,
+                    row["winner_code"],
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                )
+        axis.set_xticks(range(len(costs)), costs)
+        axis.set_yticks(range(len(thresholds)), thresholds)
+        axis.set_ylabel(r"$H$ (m)")
+        axis.set_title(title, fontsize=9, fontweight="bold")
+        if row_index == 1:
+            axis.set_xlabel(r"Miss-to-false-alarm cost ratio $r$")
+    legend = "  ".join(f"{code}: {name}" for code, name in zip(
+        code_order,
+        ("global", "lead", "magnitude", "node-local", "node-normalized", "train-severity"),
+        strict=True,
+    ))
+    figure.text(0.70, 0.005, legend, ha="center", fontsize=7)
+    figure.suptitle("Deployment boundaries induced by budget and warning loss", fontsize=12)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for suffix, dpi in (("png", 300), ("pdf", 300)):
+        figure.savefig(
+            output_dir / f"deployment_boundaries.{suffix}",
+            dpi=dpi,
+            bbox_inches="tight",
+        )
+    plt.close(figure)
+
+
 def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
     payload = validate_operational_inputs(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -265,6 +454,18 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
             "target_calibration.csv",
             (("setting", "Setting"), ("calibration_units", "Calibration units"), ("domain_coverage", "Domain coverage"), ("target_coverage", "Target coverage"), ("delta_ace", "Delta ACE"), ("relative_winkler", "Relative Winkler")),
         ),
+        "crc_calibration.md": (
+            "crc_calibration.csv",
+            (("setting", "Setting"), ("calibration_events", "Calibration events"), ("maximum_empirical_event_risk", "Maximum empirical event risk"), ("domain_coverage", "Domain coverage"), ("target_coverage", "Target coverage"), ("delta_ace", "Delta ACE"), ("delta_ace_ci_lower", "CI lower"), ("delta_ace_ci_upper", "CI upper"), ("interpretation", "Interpretation")),
+        ),
+        "deployment_budget_effects.md": (
+            "deployment_budget_effects.csv",
+            (("setting", "Setting"), ("predictor_contrast", "Predictor contrast"), ("budget_fraction", "Budget"), ("prevalence", "Prevalence"), ("kappa", "Kappa"), ("effect", "Effect"), ("ci_lower", "CI lower"), ("ci_upper", "CI upper")),
+        ),
+        "warning_rule_migration.md": (
+            "warning_rule_migration.csv",
+            (("setting", "Setting"), ("H_m", "H (m)"), ("miss_to_false_alarm_ratio", "Cost ratio"), ("winner_strategy", "Observed lowest-loss strategy"), ("winner_loss", "Winner loss"), ("runner_up_loss_gap", "Runner-up gap"), ("interpretation", "Boundary")),
+        ),
         "claim_evidence.md": (
             "claim_evidence.csv",
             (("claim_id", "Claim"), ("estimand", "Estimand"), ("n", "n"), ("independent_unit", "Unit"), ("resampling", "Resampling"), ("calibrator_treatment", "Calibrator"), ("multiplicity", "Multiplicity"), ("prespecification", "Status")),
@@ -290,6 +491,11 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         payload["operational_contrasts.csv"],
         output_dir / "operational_reliability_effects.png",
     )
+    _deployment_plot(
+        payload["deployment_budget_effects.csv"],
+        payload["warning_rule_migration.csv"],
+        output_dir,
+    )
     return {
         "status": "PASS",
         "operational_rows": len(payload["operational_contrasts.csv"]),
@@ -297,6 +503,9 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
             payload["operational_evaluation_specification.csv"]
         ),
         "target_calibration_rows": len(payload["target_calibration.csv"]),
+        "crc_calibration_rows": len(payload["crc_calibration.csv"]),
+        "deployment_budget_rows": len(payload["deployment_budget_effects.csv"]),
+        "warning_rule_rows": len(payload["warning_rule_migration.csv"]),
         "claim_rows": len(payload["claim_evidence.csv"]),
         "fairness_rows": len(payload["baseline_fairness.csv"]),
         "hpo_candidate_rows": len(payload["hpo_candidates.csv"]),
