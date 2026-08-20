@@ -51,7 +51,7 @@ bulk arrays.
 `crc_calibration.csv` are the compact source tables for the paper's central
 Fig. 2/Table I evidence. `deployment_budget_effects.csv` and
 `warning_rule_migration.csv` expose the rows rendered in Fig. 3. These files
-contain reporting-unit summaries and no field arrays. `claim_evidence.csv` and
+contain archived aggregate reporting summaries and no field arrays. `claim_evidence.csv` and
 `baseline_fairness.csv` expose statistical and training-design disclosures
 that are easy to miss in the page-limited manuscript.
 
@@ -78,13 +78,13 @@ its rendered form is `results/generated/reproducibility_scope.md`.
 |---|---|
 | Event-summary recomputation | Metric means are recomputed from public event rows. |
 | Paired-event recomputation | Effects, intervals, tests, and multiplicity adjustment are recomputed from public event rows. |
-| Summary regeneration | A checked reporting-unit summary is validated and rendered; its bootstrap is not rerun. |
+| Archived-summary regeneration | An archived aggregate reporting summary is validated and rendered; its field-array bootstrap or calibrator refit is not rerun. |
 | Aggregate regeneration | A reported aggregate row is validated and rendered. |
 | Code path only | Provider data or frozen checkpoints are required for paper-scale execution. |
 
 The six paired CANO--baseline contrasts are statistic recomputations. The
 central UFB/UFC/WB2 operational contrasts, target-calibration profiles, CRC
-sensitivity rows, and deployment-boundary records are summary regenerations.
+sensitivity rows, and deployment-boundary records are archived-summary regenerations.
 The fitting code for empirical event-balanced calibration and finite-sample
 CRC is public, but the repository does not imply that every paper statistic is
 recomputed from unavailable provider field arrays.
@@ -121,15 +121,20 @@ smallest normalized-residual threshold satisfying the corrected event-mean
 risk constraint. Both functions operate on one residual-score array per
 nonempty calibration event and are unit-tested, including the uninformative
 small-sample fallback. `crc_calibration.csv` contains the two frozen Table I
-Panel B reporting-unit summaries; `reproduce_operational_evidence.py` validates
-and renders them without claiming to rerun their event bootstrap.
+Panel B archived aggregate reporting summaries. They additionally disclose that empty
+events are excluded symmetrically and that calibration and evaluation events
+are resampled separately with common method indices while every CRC and
+empirical calibrator is refit. `reproduce_operational_evidence.py` validates
+and renders these stored records without claiming to rerun that field-array
+bootstrap or refit.
 
 ## Deployment-boundary disclosures
 
 `deployment_budget_effects.csv` records the RQ3 budget/prevalence coordinates,
 effects, and stored confidence intervals. `warning_rule_migration.csv` records
-the complete RQ4 threshold-by-cost grids and the observed lowest-loss strategy
-for each cell. `reproduce_operational_evidence.py` validates both sources and
+the complete RQ4 threshold-by-cost grids, the exact prevalence-weighted
+event-macro loss, the observed lowest-loss strategy, and display-only near ties
+whose winner--runner-up gap is at most $10^{-4}$. `reproduce_operational_evidence.py` validates both sources and
 regenerates `deployment_boundaries.pdf` and `deployment_boundaries.png`. The
 warning-rule heatmaps are descriptive test-event rankings, not inferential
 comparisons.
@@ -149,20 +154,22 @@ digests.
 
 `configs/evaluation/berlin_i_role_membership.csv` expands the 125-row public
 role contract and binds every alias to the provider split, event name, and
-archive-relative directory. Run `scripts/validate_public_contract.py
---data-root ... --write-receipt outputs/provider-preflight.json` to check exact
+archive-relative directory. Run the evaluation-data identity and split-integrity
+verification with `scripts/validate_public_contract.py
+--data-root ... --write-data-integrity-record outputs/data-integrity-verification.json` to check exact
 provider membership, the prepared 85/15/13/12 counts, and event-ID disjointness
 across all four roles. It accesses only scalar identity metadata. Pass the
-resulting receipt to `run_evidence_pipeline.py` with
-`--provider-preflight-receipt outputs/provider-preflight.json`; the pipeline
+resulting data-integrity verification record to `run_evidence_pipeline.py` with
+`--data-integrity-record outputs/data-integrity-verification.json`; the pipeline
 recomputes the current metadata fingerprint and fails closed on any data-root,
 identity, role-config, or provider-ledger mismatch. With `--provider-archive
 ...`, the validator independently
 matches all 125 directories from the ZIP central directory without opening a
 payload member.
 
-The receipt SHA, normalization SHA, calibration-configuration SHA, provider
-ledger SHA, role-configuration SHA, prepared-identity SHA, and all three
+The data-integrity verification-record SHA, normalization SHA,
+calibration-configuration SHA, provider ledger SHA, role-configuration SHA,
+evaluation-data-identity SHA, and all three
 checkpoint SHAs are written to the final evidence record.
 
 ## Determinism

@@ -49,14 +49,14 @@ deployment-boundary, claim-to-evidence, and baseline-fairness tables plus the
 central-effect and RQ3/RQ4 figures.
 The fifth checks the checkpoint-selection metric, HPO winner calculation,
 the checked-in public role ledger, reproduction-level disclosure, and WIS
-claim scope. Exact prepared-data/provider binding is the separate required
-`--data-root` preflight documented below.
+claim scope. Exact evaluation-data identity and split integrity are verified by
+the separate required `--data-root` procedure documented below.
 None of these commands downloads a dataset or requires a GPU.
 
 ## Primary operational-reliability evidence
 
 The central population and calibration-axis contrasts are checked in as small
-reporting-unit summaries. They cover UFB California and Tennessee development,
+archived aggregate reporting summaries. They cover UFB California and Tennessee development,
 the prespecified UFC Berlin I evaluation, its three-initialization extension,
 the Berlin II deployment boundary, and the prespecified WeatherBench 2
 cross-domain test.
@@ -75,13 +75,15 @@ cross-domain test.
   the four empirical-calibration rows in Table I Panel A.
 - [`crc_calibration.csv`](results/paper/crc_calibration.csv) exposes the two
   finite-sample CRC rows in Table I Panel B, including the corrected empirical
-  event-risk limit and stored event-bootstrap ACE interval.
+  event-risk limit, stored event-bootstrap ACE interval, empty-event estimand,
+  and replicate-wise calibrator-refit contract.
 - [`deployment_budget_effects.csv`](results/paper/deployment_budget_effects.csv)
   contains the nine budget/prevalence points and stored intervals in Fig. 3(a).
 - [`warning_rule_migration.csv`](results/paper/warning_rule_migration.csv)
   contains all 36 Fig. 3(b) cells together with the observed winner loss and
-  runner-up gap. These are descriptive event-level rankings, not inferential
-  policy-superiority claims.
+  runner-up gap. It records the exact prevalence-weighted event-macro loss and
+  marks display-only near ties at a gap of at most $10^{-4}$. These are
+  descriptive event-level rankings, not inferential policy-superiority claims.
 - [`claim_evidence.csv`](results/paper/claim_evidence.csv) states the estimand,
   unit, resampling, calibrator treatment, multiplicity family,
   prespecification status, and boundary for every principal claim.
@@ -93,7 +95,7 @@ cross-domain test.
   candidate configurations, seed-42 development event-macro physical-H RMSE,
   best epoch, parameter count, and the selected candidate for every system.
 - [`reproducibility_scope.csv`](results/paper/reproducibility_scope.csv)
-  distinguishes statistic recomputation from summary or aggregate
+  distinguishes statistic recomputation from archived-summary or aggregate
   regeneration and from code paths requiring provider data or checkpoints.
 
 <p align="center">
@@ -119,10 +121,10 @@ and random-seed roles are centralized in
 
 - **Statistic recomputation:** Table II means and the six paired CANO--baseline
   comparisons are recomputed from 48 public event rows.
-- **Checked summary regeneration:** the central UFB/UFC/WB2 contrasts,
+- **Archived-summary regeneration:** the central UFB/UFC/WB2 contrasts,
   Fig. 2-style plot, Table I Panels A/B, and Fig. 3 deployment boundaries are
-  validated and regenerated from reporting-unit summaries; their field-array
-  bootstrap is not rerun.
+  validated and regenerated from archived aggregate reporting summaries; their
+  field-array bootstrap and calibrator refits are not rerun.
 - **Provider-dependent code path:** paper-scale standard-objective training and
   evaluation require provider data and checkpoints. The compact package does
   not reproduce the protocol-aligned DNO, UFB/WB2 operational analyses, or
@@ -250,7 +252,7 @@ out events. The public functions are `fit_node_scale`,
 For finite-sample CRC, `crc_maximum_empirical_event_risk` exposes the bounded
 event-loss correction and `fit_event_balanced_crc` fits the corresponding
 event-balanced residual threshold. The checked-in CRC table remains an
-explicit summary regeneration because provider field arrays are not
+explicit archived-summary regeneration because provider field arrays are not
 redistributed.
 
 The training loss remains each architecture's native normalized MSE. All four
@@ -260,8 +262,9 @@ RMSE across all development events, all 24 leads, and every valid cell. The
 criterion is recorded as `development_event_macro_physical_h_rmse` in each
 checkpoint and training summary.
 
-Provider identity is validated as a separate, required preflight for a
-paper-scale run. It compares all 125 prepared identities with the public
+Evaluation-data identity and split integrity are verified as a separate,
+required procedure for a paper-scale run. It compares all 125 prepared
+identities with the public
 85/15/13/12 role ledger while opening only `event_id`,
 `provider_event_name`, and `provider_relative_path` metadata—not `input`,
 `target`, or `mask`:
@@ -269,7 +272,7 @@ paper-scale run. It compares all 125 prepared identities with the public
 ```bash
 python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i \
-  --write-receipt outputs/provider-preflight.json
+  --write-data-integrity-record outputs/data-integrity-verification.json
 ```
 
 After this check passes, execute the full public evidence chain from three
@@ -282,22 +285,23 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
-  --provider-preflight-receipt outputs/provider-preflight.json \
+  --data-integrity-record outputs/data-integrity-verification.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
-The pipeline fails before model evaluation unless the receipt binds the current
+The pipeline fails before model evaluation unless the data-integrity
+verification record binds the current
 data-root path, all 125 identity metadata records, the role configuration, and
-the provider ledger. The resulting evidence record also binds the receipt,
+the provider ledger. The resulting evidence record also binds that verification record,
 normalization, calibration configuration, and three checkpoint hashes.
 
 This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
-85 training events. It revalidates the receipt against current identity
+85 training events. It revalidates the data-integrity record against current identity
 metadata before reading field arrays, then rejects duplicate event identities
 within or across development, calibration, and evaluation roles. The evidence
 record contains only public aliases, namespaced event-ID digests, and input
@@ -306,7 +310,7 @@ binding hashes. Dataset files remain provider-managed and are not bundled.
 Each NPZ must carry the `provider_event_name` and `provider_relative_path`
 metadata declared by
 [`berlin_i_role_membership.csv`](configs/evaluation/berlin_i_role_membership.csv).
-The prepared-data preflight compares all 125 identities exactly. If the
+The data-integrity verification compares all 125 identities exactly. If the
 original provider ZIP is available, its central directory can additionally be
 checked directly—without opening payload members—with:
 

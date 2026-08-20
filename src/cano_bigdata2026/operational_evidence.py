@@ -41,6 +41,14 @@ WARNING_CODES = {
     "train_severity": "Ts",
 }
 
+WARNING_LOSS_NAME = "prevalence-weighted event-macro loss L_prev=(r*FN+FP)/N"
+WARNING_NEAR_TIE_GAP = 1.0e-4
+CRC_RESAMPLING = "event bootstrap with replacement"
+CRC_EMPTY_EVENT_POLICY = (
+    "exclude symmetrically; estimand conditional on nonempty "
+    "prediction-selected events"
+)
+
 
 def _validate_rq1_specification(
     payload: Mapping[str, list[dict[str, str]]],
@@ -165,8 +173,18 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         upper = _finite(row, "delta_ace_ci_upper")
         if not lower <= point <= upper:
             raise ValueError("CRC confidence interval does not contain its point")
-        if row["statistics_recomputed"].lower() != "false":
-            raise ValueError("public CRC records are frozen summary regeneration")
+        if (
+            row["statistics_recomputed"].lower() != "false"
+            or int(row["bootstrap_replicates"]) != 2000
+            or int(row["bootstrap_seed"]) != 20260801
+            or row["independent_unit"] != "rainfall event"
+            or row["calibration_resampling"] != CRC_RESAMPLING
+            or row["evaluation_resampling"] != CRC_RESAMPLING
+            or row["calibrator_refit_each_replicate"].lower() != "true"
+            or row["common_method_indices"].lower() != "true"
+            or row["empty_event_policy"] != CRC_EMPTY_EVENT_POLICY
+        ):
+            raise ValueError("public CRC resampling and refit contract changed")
 
     budget_rows = payload["deployment_budget_effects.csv"]
     if [row["record_id"] for row in budget_rows] != [
@@ -217,8 +235,14 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         strategy = row["winner_strategy"]
         if WARNING_CODES.get(strategy) != row["winner_code"]:
             raise ValueError("warning-rule code does not match its strategy")
-        if _finite(row, "winner_loss") < 0.0 or _finite(row, "runner_up_loss_gap") < 0.0:
+        gap = _finite(row, "runner_up_loss_gap")
+        if _finite(row, "winner_loss") < 0.0 or gap < 0.0:
             raise ValueError("warning loss and runner-up gap must be nonnegative")
+        if row["loss_name"] != WARNING_LOSS_NAME:
+            raise ValueError("warning-rule loss definition changed")
+        expected_near_tie = gap <= WARNING_NEAR_TIE_GAP
+        if (row["near_tie"].lower() == "true") != expected_near_tie:
+            raise ValueError("warning-rule near-tie marker does not match its gap")
         if row["interpretation"] != "descriptive test-event ranking":
             raise ValueError("warning-rule ranking lost its descriptive boundary")
     claims = payload["claim_evidence.csv"]
@@ -264,7 +288,7 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         "event-summary recomputation",
         "paired-event recomputation",
         "aggregate regeneration",
-        "summary regeneration",
+        "archived-summary regeneration",
         "code path only",
     }
     if any(row["reproduction_level"] not in allowed_levels for row in scope_rows):
@@ -399,7 +423,7 @@ def _deployment_plot(
                 axis.text(
                     x_index,
                     y_index,
-                    row["winner_code"],
+                    row["winner_code"] + ("*" if row["near_tie"].lower() == "true" else ""),
                     ha="center",
                     va="center",
                     fontsize=8,
@@ -415,7 +439,15 @@ def _deployment_plot(
         ("global", "lead", "magnitude", "node-local", "node-normalized", "train-severity"),
         strict=True,
     ))
-    figure.text(0.70, 0.005, legend, ha="center", fontsize=7)
+    figure.text(0.70, 0.018, legend, ha="center", fontsize=7)
+    figure.text(
+        0.70,
+        -0.012,
+        r"$*$ winner--runner-up loss gap $\leq 10^{-4}$; "
+        r"$L_{\mathrm{prev},e}=(r\,\mathrm{FN}_e+\mathrm{FP}_e)/N_e$",
+        ha="center",
+        fontsize=7,
+    )
     figure.suptitle("Deployment boundaries induced by budget and warning loss", fontsize=12)
     output_dir.mkdir(parents=True, exist_ok=True)
     for suffix, dpi in (("png", 300), ("pdf", 300)):
@@ -456,7 +488,7 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         ),
         "crc_calibration.md": (
             "crc_calibration.csv",
-            (("setting", "Setting"), ("calibration_events", "Calibration events"), ("maximum_empirical_event_risk", "Maximum empirical event risk"), ("domain_coverage", "Domain coverage"), ("target_coverage", "Target coverage"), ("delta_ace", "Delta ACE"), ("delta_ace_ci_lower", "CI lower"), ("delta_ace_ci_upper", "CI upper"), ("interpretation", "Interpretation")),
+            (("setting", "Setting"), ("calibration_events", "Calibration events"), ("maximum_empirical_event_risk", "Maximum empirical event risk"), ("domain_coverage", "Domain coverage"), ("target_coverage", "Target coverage"), ("delta_ace", "Delta ACE"), ("delta_ace_ci_lower", "CI lower"), ("delta_ace_ci_upper", "CI upper"), ("calibrator_refit_each_replicate", "Refit each replicate"), ("empty_event_policy", "Empty-event policy"), ("interpretation", "Interpretation")),
         ),
         "deployment_budget_effects.md": (
             "deployment_budget_effects.csv",
@@ -464,7 +496,7 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         ),
         "warning_rule_migration.md": (
             "warning_rule_migration.csv",
-            (("setting", "Setting"), ("H_m", "H (m)"), ("miss_to_false_alarm_ratio", "Cost ratio"), ("winner_strategy", "Observed lowest-loss strategy"), ("winner_loss", "Winner loss"), ("runner_up_loss_gap", "Runner-up gap"), ("interpretation", "Boundary")),
+            (("setting", "Setting"), ("H_m", "H (m)"), ("miss_to_false_alarm_ratio", "Cost ratio"), ("loss_name", "Loss"), ("winner_strategy", "Observed lowest-loss strategy"), ("winner_loss", "Winner loss"), ("runner_up_loss_gap", "Runner-up gap"), ("near_tie", "Near tie"), ("interpretation", "Boundary")),
         ),
         "claim_evidence.md": (
             "claim_evidence.csv",
@@ -506,6 +538,10 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         "crc_calibration_rows": len(payload["crc_calibration.csv"]),
         "deployment_budget_rows": len(payload["deployment_budget_effects.csv"]),
         "warning_rule_rows": len(payload["warning_rule_migration.csv"]),
+        "warning_near_tie_rows": sum(
+            row["near_tie"].lower() == "true"
+            for row in payload["warning_rule_migration.csv"]
+        ),
         "claim_rows": len(payload["claim_evidence.csv"]),
         "fairness_rows": len(payload["baseline_fairness.csv"]),
         "hpo_candidate_rows": len(payload["hpo_candidates.csv"]),
