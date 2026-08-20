@@ -84,6 +84,13 @@ cross-domain test.
   distinguishes statistic recomputation from summary or aggregate
   regeneration and from code paths requiring provider data or checkpoints.
 
+Exact predictor identities and random-seed roles are centralized in
+[`docs/PREDICTOR_SEED_CONTRACT.md`](docs/PREDICTOR_SEED_CONTRACT.md). In
+particular, the UFC operational questions use a protocol-aligned DNO predictor,
+whereas Table II uses a separate DNO-3 public-core adaptation together with
+CANO, FNO3D, and U-Net3D. The document records the primary, robustness,
+selection, ensemble, and bootstrap seeds without overloading the manuscript.
+
 The UFB/UFC/WB2 operational rows regenerate the paper's figures and tables from
 checked reporting-unit summaries; they do **not** recompute those statistics
 from field arrays. By contrast, the six CANO--baseline paired comparisons are

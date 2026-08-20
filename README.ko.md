@@ -65,6 +65,12 @@ GPU를 요구하지 않습니다.
 - `results/paper/reproducibility_scope.csv`: 사건행 기반 통계 재계산, 요약값 기반
   재생성, provider data/checkpoint가 필요한 코드 경로의 구분
 
+예측기 정체성과 무작위 seed의 정확한 역할은
+[`docs/PREDICTOR_SEED_CONTRACT.md`](docs/PREDICTOR_SEED_CONTRACT.md)에 집중해
+공개합니다. UFC 운영 질문은 프로토콜 정렬 DNO를 사용하고, Table II는 CANO와
+별도의 DNO-3 공개 핵심구조 adaptation, FNO3D, U-Net3D를 비교합니다. 이 문서는
+주 분석·강건성·설정 선택·앙상블·bootstrap seed를 서로 구분합니다.
+
 UFB/UFC/WB2 운영대상 표와 그림은 공개 reporting-unit 요약값에서 재생성하며,
 field array에서 통계를 다시 계산하지 않습니다. 반면 CANO--baseline 6개 사건쌍
 비교는 공개된 48개 사건행에서 통계를 다시 계산합니다. 이 범위 차이를 공개

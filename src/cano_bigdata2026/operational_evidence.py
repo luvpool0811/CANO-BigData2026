@@ -44,7 +44,7 @@ def _validate_rq1_specification(
     )
     exact_text = {
         "claim_id": "RQ1-UFC-BerlinI",
-        "point_predictor": "forcing-aware DNO",
+        "point_predictor": "protocol-aligned DNO",
         "predictor_initialization": "seed 42",
         "reference_population": "all valid cell-times across 24 forecast leads",
         "operational_population": (

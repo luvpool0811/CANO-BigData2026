@@ -55,7 +55,7 @@ that are easy to miss in the page-limited manuscript.
 
 `operational_evaluation_specification.csv` closes the central Berlin I RQ1
 contract in one machine-readable row. It identifies the fixed seed-42
-forcing-aware DNO prediction archive, full and prediction-selected
+protocol-aligned DNO prediction archive, full and prediction-selected
 populations, global absolute-residual interval construction, provider
 Valid/Test roles, event-macro estimand, paired bootstrap, and claim boundary.
 The validator binds its numerical fields to `operational_contrasts.csv` and its
@@ -136,6 +136,9 @@ payload member.
 Training seeds are explicit in every command and configuration. CUDA kernels
 can still exhibit platform-dependent numerical differences. Record the GPU,
 CUDA, PyTorch, and driver versions with any independently reproduced result.
+The complete cross-analysis registry, including the distinction between the
+UFC operational DNO and the Table II DNO-3 adaptation, is in
+[`PREDICTOR_SEED_CONTRACT.md`](PREDICTOR_SEED_CONTRACT.md).
 
 ## Scope
 
