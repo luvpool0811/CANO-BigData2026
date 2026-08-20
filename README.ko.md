@@ -165,7 +165,8 @@ identity를 공개 85/15/13/12 역할 ledger와 정확히 대조합니다.
 
 ```bash
 python scripts/validate_public_contract.py \
-  --data-root /path/to/prepared/berlin-i
+  --data-root /path/to/prepared/berlin-i \
+  --write-receipt outputs/provider-preflight.json
 ```
 
 이 검사가 PASS한 뒤, 3개 동결 checkpoint에서 전체 증거 사슬을 실행합니다.
@@ -177,20 +178,24 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
+  --provider-preflight-receipt outputs/provider-preflight.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
+pipeline은 receipt가 현재 data-root 경로, 125개 identity metadata, 역할 설정과
+provider ledger에 결속되지 않으면 모델 평가 전에 실패합니다. 최종 evidence에는
+receipt, normalization, calibration 설정과 세 checkpoint의 hash도 기록됩니다.
+
 이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
 노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
 평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
-증거 사슬 명령 자체는 공개 alias와 역할 구조를 검사하고 실행 중
-개발·보정·평가 event ID의 역할 내 중복과 역할 간 중복을 즉시 거부합니다.
-그러나 준비 파일을 125개 provider 사건명·archive directory 행과 독립적으로
-결속하지는 않으며, 그 결속은 위 필수 preflight가 담당합니다. 산출물에는 실제
-ID 대신 공개 alias와 namespace가 적용된 digest를 기록합니다.
+증거 사슬은 field array를 읽기 전에 현재 identity metadata를 receipt와 다시
+대조하고, 실행 중 개발·보정·평가 event ID의 역할 내 중복과 역할 간 중복을
+즉시 거부합니다. 산출물에는 실제 ID 대신 공개 alias, namespace가 적용된 digest와
+입력 결속 hash를 기록합니다.
 
 각 NPZ에는 `berlin_i_role_membership.csv`의 `provider_event_name`과
 `provider_relative_path` metadata도 들어 있어야 합니다. 위 prepared-data

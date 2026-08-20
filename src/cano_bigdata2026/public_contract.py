@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Mapping
@@ -12,6 +13,7 @@ import numpy as np
 import yaml
 
 from .operational_evidence import validate_operational_inputs
+from .results import validate_event_level_means
 from .training import CHECKPOINT_SELECTION_METRIC
 from .workflow import RoleContract, validate_role_contracts
 
@@ -22,6 +24,21 @@ def _csv_rows(path: Path) -> list[dict[str, str]]:
     if not rows or any(value is None for row in rows for value in row.values()):
         raise ValueError(f"{path.name} is empty or incomplete")
     return rows
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _identity_digest(records: list[dict[str, str]]) -> str:
+    payload = json.dumps(
+        records, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _role_configuration(root: Path) -> tuple[dict[str, object], dict[str, RoleContract]]:
@@ -130,6 +147,10 @@ def validate_static_contract(root: Path) -> dict[str, object]:
     _validate_training_configs(root)
     _validate_wis_scope(root)
     payload = validate_operational_inputs(root / "results/paper")
+    recomputation = validate_event_level_means(
+        _csv_rows(root / "results/paper/main_results.csv"),
+        _csv_rows(root / "results/paper/event_level_results.csv"),
+    )
     return {
         "status": "PASS",
         "checkpoint_selection_metric": CHECKPOINT_SELECTION_METRIC,
@@ -140,6 +161,8 @@ def validate_static_contract(root: Path) -> dict[str, object]:
         ),
         "hpo_candidate_rows": len(payload["hpo_candidates.csv"]),
         "reproducibility_scope_rows": len(payload["reproducibility_scope.csv"]),
+        "table_ii_event_rows_recomputed": recomputation["event_rows_recomputed"],
+        "table_ii_metrics_recomputed": len(recomputation["metrics_recomputed"]),
         "raw_field_arrays_opened": 0,
     }
 
@@ -157,6 +180,7 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
     owner: dict[str, str] = {}
     observed_provider_paths: set[str] = set()
     counts: dict[str, int] = {}
+    identity_records: list[dict[str, str]] = []
     for role, contract in contracts.items():
         paths = sorted((data_root / contract.directory).glob("*.npz"))
         if len(paths) != contract.count:
@@ -193,6 +217,15 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
                     f"event identity overlaps prepared roles {previous} and {role}"
                 )
             owner[event_id] = role
+            identity_records.append(
+                {
+                    "role": role,
+                    "filename": path.name,
+                    "event_id": event_id,
+                    "provider_event_name": provider_name,
+                    "provider_relative_path": provider_path,
+                }
+            )
         counts[role] = len(paths)
     if len(owner) != sum(counts.values()):
         raise ValueError("prepared event identities are not globally unique")
@@ -206,9 +239,35 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
         "role_counts": counts,
         "unique_event_ids": len(owner),
         "provider_identities_matched": len(observed_provider_paths),
+        "prepared_identity_sha256": _identity_digest(identity_records),
         "field_arrays_opened": 0,
         "identity_metadata_only": True,
     }
+
+
+def create_provider_preflight_receipt(
+    root: Path, data_root: Path, output_path: Path
+) -> dict[str, object]:
+    """Create the provider-bound receipt required by the evidence pipeline."""
+
+    root = root.resolve()
+    data_root = data_root.resolve()
+    result = validate_prepared_split_ids(root, data_root)
+    role_config_path = root / "configs/evaluation/berlin_i_roles.yaml"
+    membership_path = root / "configs/evaluation/berlin_i_role_membership.csv"
+    receipt: dict[str, object] = {
+        "schema_id": "cano_provider_preflight_receipt_v1",
+        "status": "PASS",
+        "data_root_resolved": str(data_root),
+        "role_config_sha256": _sha256_file(role_config_path),
+        "provider_membership_sha256": _sha256_file(membership_path),
+        **result,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return receipt
 
 
 def validate_provider_archive_membership(root: Path, archive: Path) -> dict[str, object]:
@@ -250,11 +309,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--provider-archive", type=Path)
+    parser.add_argument("--write-receipt", type=Path)
     args = parser.parse_args(argv)
     result = validate_static_contract(args.root)
     if args.data_root is not None:
         result["prepared_split_check"] = validate_prepared_split_ids(
             args.root, args.data_root
+        )
+    if args.write_receipt is not None:
+        if args.data_root is None:
+            parser.error("--write-receipt requires --data-root")
+        result["provider_preflight_receipt"] = create_provider_preflight_receipt(
+            args.root, args.data_root, args.write_receipt
         )
     if args.provider_archive is not None:
         result["provider_archive_check"] = validate_provider_archive_membership(
@@ -266,6 +332,7 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "main",
+    "create_provider_preflight_receipt",
     "validate_prepared_split_ids",
     "validate_provider_archive_membership",
     "validate_static_contract",

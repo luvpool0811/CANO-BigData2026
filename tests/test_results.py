@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import csv
+import shutil
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from cano_bigdata2026.results import reproduce
 
@@ -46,6 +48,10 @@ def test_reproduce_public_results(tmp_path: Path) -> None:
     assert result["status"] == "PASS"
     assert result["rows"] == 6
     assert result["event_rows"] == 48
+    assert result["statistics_recomputed"] is True
+    assert result["standard_systems_recomputed"] == 4
+    assert result["event_rows_recomputed"] == 48
+    assert len(result["metrics_recomputed"]) == 7
     table = (tmp_path / "generated/main_results.md").read_text(encoding="utf-8")
     assert "## Standard-objective comparison" in table
     assert "## CANO training-objective ablation" in table
@@ -59,3 +65,17 @@ def test_reproduce_public_results(tmp_path: Path) -> None:
         "event_level_h_rmse.png",
     ):
         assert (tmp_path / "generated" / name).stat().st_size > 1_000
+
+
+def test_reproduce_rejects_event_summary_mismatch(tmp_path: Path) -> None:
+    results_dir = tmp_path / "paper"
+    shutil.copytree(ROOT / "results/paper", results_dir)
+    path = results_dir / "event_level_results.csv"
+    rows = _read(path)
+    rows[0]["h_rmse_m"] = str(float(rows[0]["h_rmse_m"]) + 0.1)
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="event mean .* does not match"):
+        reproduce(results_dir=results_dir, output_dir=tmp_path / "generated")

@@ -9,7 +9,7 @@ from .calibration import (
 )
 from .models import CANO, build_model, real_parameter_count
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "CANO",

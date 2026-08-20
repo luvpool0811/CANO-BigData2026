@@ -248,7 +248,8 @@ paper-scale run. It compares all 125 prepared identities with the public
 
 ```bash
 python scripts/validate_public_contract.py \
-  --data-root /path/to/prepared/berlin-i
+  --data-root /path/to/prepared/berlin-i \
+  --write-receipt outputs/provider-preflight.json
 ```
 
 After this check passes, execute the full public evidence chain from three
@@ -261,22 +262,26 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
+  --provider-preflight-receipt outputs/provider-preflight.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
+The pipeline fails before model evaluation unless the receipt binds the current
+data-root path, all 125 identity metadata records, the role configuration, and
+the provider ledger. The resulting evidence record also binds the receipt,
+normalization, calibration configuration, and three checkpoint hashes.
+
 This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
-85 training events. The evidence command itself validates the public alias and
-role structure, rejects duplicate event identities within or across
-development, calibration, and evaluation roles, and records only public
-aliases plus namespaced event-ID digests. It does **not** independently bind
-the prepared files to all 125 provider event-name/archive-directory rows;
-that binding is the required preflight above. Dataset files remain
-provider-managed and are not bundled.
+85 training events. It revalidates the receipt against current identity
+metadata before reading field arrays, then rejects duplicate event identities
+within or across development, calibration, and evaluation roles. The evidence
+record contains only public aliases, namespaced event-ID digests, and input
+binding hashes. Dataset files remain provider-managed and are not bundled.
 
 Each NPZ must carry the `provider_event_name` and `provider_relative_path`
 metadata declared by

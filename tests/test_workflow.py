@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,11 @@ import torch
 import yaml
 
 from cano_bigdata2026.models import build_model
-from cano_bigdata2026.workflow import run_evidence_pipeline, validate_role_contracts
+from cano_bigdata2026.workflow import (
+    prepared_identity_fingerprint,
+    run_evidence_pipeline,
+    validate_role_contracts,
+)
 
 
 MODEL_CONFIG = {
@@ -24,21 +29,31 @@ MODEL_CONFIG = {
 }
 
 
-def _event(path: Path, seed: int) -> None:
+def _event(path: Path, seed: int, *, role: str) -> None:
     generator = np.random.default_rng(seed)
     inputs = generator.normal(size=(31, 5, 7)).astype(np.float32)
     target = generator.uniform(0.1, 0.8, size=(72, 5, 7)).astype(np.float32)
     mask = np.ones((5, 7), dtype=bool)
     np.savez_compressed(
-        path, input=inputs, target=target, mask=mask, event_id=np.asarray(path.stem)
+        path,
+        input=inputs,
+        target=target,
+        mask=mask,
+        event_id=np.asarray(path.stem),
+        provider_event_name=np.asarray(f"Provider {role}"),
+        provider_relative_path=np.asarray(f"Provider/{role}/{path.stem}/"),
     )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     data = tmp_path / "data"
-    for index, split in enumerate(("validation", "calibration", "test")):
+    for index, split in enumerate(("train", "validation", "calibration", "test")):
         (data / split).mkdir(parents=True)
-        _event(data / split / f"{split}-01.npz", index + 10)
+        _event(data / split / f"{split}-01.npz", index + 10, role=split)
     normalization = data / "normalization.json"
     normalization.write_text(
         json.dumps(
@@ -68,6 +83,7 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     roles.write_text(
         "ensemble_seeds: [1, 2, 3]\n"
         "event_id_digest_namespace: synthetic-test/v1\n"
+        "public_membership_file: membership.csv\n"
         "roles:\n"
         "  training: {directory: train, count: 1, public_event_alias_prefix: Train}\n"
         "  development: {directory: validation, count: 1, public_event_alias_prefix: Development}\n"
@@ -75,6 +91,8 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
         "  evaluation: {directory: test, count: 1, public_event_alias_prefix: Evaluation}\n",
         encoding="utf-8",
     )
+    membership = tmp_path / "membership.csv"
+    membership.write_text("synthetic membership\n", encoding="utf-8")
     calibration = tmp_path / "calibration.yaml"
     calibration.write_text(
         "node_scale: {fit_split: development, floor_m: 0.001}\n"
@@ -88,12 +106,32 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     output = tmp_path / "evidence.json"
+    role_contracts = validate_role_contracts(yaml.safe_load(roles.read_text()))
+    identity = prepared_identity_fingerprint(data, role_contracts)
+    receipt = tmp_path / "provider-preflight.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "schema_id": "cano_provider_preflight_receipt_v1",
+                "status": "PASS",
+                "data_root_resolved": str(data.resolve()),
+                "role_config_sha256": _sha256(roles),
+                "provider_membership_sha256": _sha256(membership),
+                "field_arrays_opened": 0,
+                "identity_metadata_only": True,
+                **identity,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
     payload = run_evidence_pipeline(
         checkpoints=checkpoints,
         data_root=data,
         normalization_path=normalization,
         role_config_path=roles,
         calibration_config_path=calibration,
+        provider_preflight_receipt_path=receipt,
         output_path=output,
         device="cpu",
         query_chunk_size=16,
@@ -111,6 +149,12 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
         "evaluation": 1,
     }
     assert payload["role_identity"]["pairwise_disjoint_observed_roles"] is True
+    assert payload["input_bindings"]["prepared_identity_sha256"] == identity[
+        "prepared_identity_sha256"
+    ]
+    assert payload["input_bindings"]["provider_preflight_receipt_sha256"] == _sha256(
+        receipt
+    )
     assert len(payload["role_identity"]["event_id_digests"]["evaluation"]) == 1
     assert payload["events"][0]["event_id"] == "Evaluation 01"
     assert payload["point_prediction_event_macro"]["n_events"] == 1
@@ -119,23 +163,34 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
 
     calibration_event = data / "calibration/calibration-01.npz"
     with np.load(calibration_event, allow_pickle=False) as archive:
-        duplicate = {key: np.asarray(archive[key]).copy() for key in ("input", "target", "mask")}
+        duplicate = {
+            key: np.asarray(archive[key]).copy()
+            for key in (
+                "input",
+                "target",
+                "mask",
+                "provider_event_name",
+                "provider_relative_path",
+            )
+        }
     np.savez_compressed(
         calibration_event,
         **duplicate,
         event_id=np.asarray("validation-01"),
     )
-    with pytest.raises(ValueError, match="overlaps roles development and calibration"):
+    with pytest.raises(ValueError, match="preflight receipt does not bind"):
         run_evidence_pipeline(
             checkpoints=checkpoints,
             data_root=data,
             normalization_path=normalization,
             role_config_path=roles,
             calibration_config_path=calibration,
+            provider_preflight_receipt_path=receipt,
             output_path=tmp_path / "overlap.json",
             device="cpu",
             query_chunk_size=16,
         )
+
 
 
 def test_public_role_aliases_must_be_pairwise_disjoint() -> None:

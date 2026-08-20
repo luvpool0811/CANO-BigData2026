@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 from pathlib import Path
+from statistics import fmean
 from typing import Callable, Sequence
 
 import matplotlib
@@ -22,6 +24,16 @@ METRIC_LABELS = {
     "target_wis": "Target WIS",
 }
 
+EVENT_RECOMPUTED_METRICS = (
+    "h_rmse_m",
+    "nse",
+    "wet_rmse_m",
+    "wet_nse",
+    "peak_depth_abs_error_m",
+    "target_ace",
+    "target_wis",
+)
+
 
 def _rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as stream:
@@ -33,6 +45,48 @@ def _rows(path: Path) -> list[dict[str, str]]:
 
 def _float(row: dict[str, str], key: str) -> float:
     return float(row[key])
+
+
+def validate_event_level_means(
+    main_rows: list[dict[str, str]], event_rows: list[dict[str, str]]
+) -> dict[str, object]:
+    """Recompute every public standard-system mean from the 48 event rows."""
+
+    standard = [row for row in main_rows if row.get("comparison") == "standard"]
+    if len(standard) != 4:
+        raise ValueError("expected four standard-objective summary rows")
+    observed_systems: set[str] = set()
+    for summary in standard:
+        system = summary["system"].split(" (")[0]
+        if system in observed_systems:
+            raise ValueError(f"duplicate standard summary for {system}")
+        observed_systems.add(system)
+        selected = [row for row in event_rows if row.get("system") == system]
+        if len(selected) != 12:
+            raise ValueError(f"{system} has {len(selected)} event rows; expected 12")
+        event_ids = [row.get("event", "") for row in selected]
+        if any(not value for value in event_ids) or len(set(event_ids)) != 12:
+            raise ValueError(f"{system} event identities are missing or duplicated")
+        for metric in EVENT_RECOMPUTED_METRICS:
+            values = [float(row[metric]) for row in selected]
+            expected = float(summary[metric])
+            if not all(math.isfinite(value) for value in (*values, expected)):
+                raise ValueError(f"{system} {metric} contains a non-finite value")
+            recomputed = fmean(values)
+            if not math.isclose(recomputed, expected, rel_tol=0.0, abs_tol=1e-12):
+                raise ValueError(
+                    f"{system} {metric} event mean {recomputed:.17g} does not "
+                    f"match reported value {expected:.17g}"
+                )
+    extra = {row.get("system", "") for row in event_rows} - observed_systems
+    if extra:
+        raise ValueError(f"unexpected event-row systems: {sorted(extra)}")
+    return {
+        "statistics_recomputed": True,
+        "standard_systems_recomputed": len(standard),
+        "event_rows_recomputed": len(event_rows),
+        "metrics_recomputed": list(EVENT_RECOMPUTED_METRICS),
+    }
 
 
 def _display_label(row: dict[str, str]) -> str:
@@ -184,6 +238,7 @@ def _markdown(rows: list[dict[str, str]]) -> str:
 def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
     main_rows = _rows(results_dir / "main_results.csv")
     event_rows = _rows(results_dir / "event_level_results.csv")
+    recomputation = validate_event_level_means(main_rows, event_rows)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "main_results.md").write_text(
         _markdown(main_rows), encoding="utf-8"
@@ -222,6 +277,7 @@ def reproduce(*, results_dir: Path, output_dir: Path) -> dict[str, object]:
         "rows": len(main_rows),
         "event_rows": len(event_rows),
         "output_dir": str(output_dir),
+        **recomputation,
     }
 
 
@@ -240,4 +296,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-__all__ = ["reproduce", "main"]
+__all__ = [
+    "EVENT_RECOMPUTED_METRICS",
+    "validate_event_level_means",
+    "reproduce",
+    "main",
+]

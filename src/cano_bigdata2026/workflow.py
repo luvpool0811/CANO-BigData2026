@@ -177,6 +177,119 @@ def _event_id_digest(event_id: str, *, namespace: str) -> str:
     return hashlib.sha256(f"{namespace}|{event_id}".encode("utf-8")).hexdigest()
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def prepared_identity_fingerprint(
+    data_root: Path, role_contracts: Mapping[str, RoleContract]
+) -> dict[str, Any]:
+    records: list[dict[str, str]] = []
+    event_owners: dict[str, str] = {}
+    provider_paths: set[str] = set()
+    counts: dict[str, int] = {}
+    for role, contract in role_contracts.items():
+        paths = sorted((data_root / contract.directory).glob("*.npz"))
+        if len(paths) != contract.count:
+            raise ValueError(
+                f"provider preflight binding found {len(paths)} {role} files; "
+                f"expected {contract.count}"
+            )
+        for path in paths:
+            with np.load(path, allow_pickle=False) as payload:
+                required = (
+                    "event_id",
+                    "provider_event_name",
+                    "provider_relative_path",
+                )
+                if any(key not in payload for key in required):
+                    raise ValueError(
+                        f"{path.name} lacks provider identity metadata required "
+                        "by the preflight receipt"
+                    )
+                event_id = str(payload["event_id"].item())
+                provider_name = str(payload["provider_event_name"].item())
+                provider_path = str(payload["provider_relative_path"].item())
+            previous = event_owners.setdefault(event_id, role)
+            if previous != role:
+                raise ValueError(
+                    f"event identity overlaps provider roles {previous} and {role}"
+                )
+            if provider_path in provider_paths:
+                raise ValueError("provider identity is duplicated across roles")
+            provider_paths.add(provider_path)
+            records.append(
+                {
+                    "role": role,
+                    "filename": path.name,
+                    "event_id": event_id,
+                    "provider_event_name": provider_name,
+                    "provider_relative_path": provider_path,
+                }
+            )
+        counts[role] = len(paths)
+    canonical = json.dumps(
+        records, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return {
+        "role_counts": counts,
+        "unique_event_ids": len(event_owners),
+        "provider_identities_matched": len(provider_paths),
+        "prepared_identity_sha256": hashlib.sha256(canonical).hexdigest(),
+    }
+
+
+def _verify_provider_preflight_receipt(
+    *,
+    receipt_path: Path,
+    data_root: Path,
+    role_config_path: Path,
+    role_config: Mapping[str, Any],
+    role_contracts: Mapping[str, RoleContract],
+) -> dict[str, Any]:
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    membership_name = role_config.get("public_membership_file")
+    membership_path = role_config_path.parent / str(membership_name)
+    expected_counts = {
+        role: contract.count for role, contract in role_contracts.items()
+    }
+    try:
+        current = prepared_identity_fingerprint(data_root.resolve(), role_contracts)
+    except (OSError, TypeError, ValueError) as error:
+        raise ValueError(
+            "provider preflight receipt does not bind the current data root, "
+            "role contract, and provider identities"
+        ) from error
+    if (
+        receipt.get("schema_id") != "cano_provider_preflight_receipt_v1"
+        or receipt.get("status") != "PASS"
+        or Path(str(receipt.get("data_root_resolved", ""))).resolve()
+        != data_root.resolve()
+        or receipt.get("role_config_sha256") != _sha256_file(role_config_path)
+        or not membership_path.is_file()
+        or receipt.get("provider_membership_sha256")
+        != _sha256_file(membership_path)
+        or receipt.get("role_counts") != expected_counts
+        or receipt.get("field_arrays_opened") != 0
+        or receipt.get("identity_metadata_only") is not True
+        or any(receipt.get(key) != value for key, value in current.items())
+    ):
+        raise ValueError(
+            "provider preflight receipt does not bind the current data root, "
+            "role contract, and provider identities"
+        )
+    return {
+        **current,
+        "provider_preflight_receipt_sha256": _sha256_file(receipt_path),
+        "role_config_sha256": _sha256_file(role_config_path),
+        "provider_membership_sha256": _sha256_file(membership_path),
+    }
+
+
 def run_evidence_pipeline(
     *,
     checkpoints: Sequence[Path],
@@ -184,17 +297,25 @@ def run_evidence_pipeline(
     normalization_path: Path,
     role_config_path: Path,
     calibration_config_path: Path,
+    provider_preflight_receipt_path: Path,
     output_path: Path,
     device: str,
     upstream_source: Path | None = None,
     query_chunk_size: int = 32768,
 ) -> dict[str, Any]:
+    role_config = _load_yaml(role_config_path)
+    role_contracts = validate_role_contracts(role_config)
+    provider_binding = _verify_provider_preflight_receipt(
+        receipt_path=provider_preflight_receipt_path,
+        data_root=data_root,
+        role_config_path=role_config_path,
+        role_config=role_config,
+        role_contracts=role_contracts,
+    )
     target_device = torch.device(device)
     models, seeds, model_name, model_config = _load_models(
         checkpoints, device=target_device, upstream_source=upstream_source
     )
-    role_config = _load_yaml(role_config_path)
-    role_contracts = validate_role_contracts(role_config)
     calibration_config = _load_yaml(calibration_config_path)
     expected_seeds = role_config.get("ensemble_seeds")
     if expected_seeds is not None and sorted(
@@ -343,6 +464,12 @@ def run_evidence_pipeline(
                 for role, contract in role_contracts.items()
             },
         },
+        "input_bindings": {
+            **provider_binding,
+            "normalization_sha256": _sha256_file(normalization_path),
+            "calibration_config_sha256": _sha256_file(calibration_config_path),
+            "checkpoint_sha256": [_sha256_file(path) for path in checkpoints],
+        },
         "evaluation_target_reads": evaluation.count,
         "point_prediction_event_macro": point,
         "target_aligned_event_macro": target_macro,
@@ -361,6 +488,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--checkpoints", type=Path, nargs=3, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--normalization", type=Path, required=True)
+    parser.add_argument(
+        "--provider-preflight-receipt", type=Path, required=True
+    )
     parser.add_argument(
         "--role-config",
         type=Path,
@@ -384,6 +514,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         normalization_path=args.normalization,
         role_config_path=args.role_config,
         calibration_config_path=args.calibration_config,
+        provider_preflight_receipt_path=args.provider_preflight_receipt,
         output_path=args.output,
         device=args.device,
         upstream_source=args.upstream_source,
@@ -396,6 +527,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 __all__ = [
     "PhysicalEvent",
     "RoleContract",
+    "prepared_identity_fingerprint",
     "run_evidence_pipeline",
     "validate_role_contracts",
     "main",

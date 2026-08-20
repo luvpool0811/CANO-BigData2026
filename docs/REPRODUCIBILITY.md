@@ -125,16 +125,20 @@ digests.
 `configs/evaluation/berlin_i_role_membership.csv` expands the 125-row public
 role contract and binds every alias to the provider split, event name, and
 archive-relative directory. Run `scripts/validate_public_contract.py
---data-root ...` to check exact provider membership, the prepared 85/15/13/12
-counts, and event-ID disjointness across all four roles. It accesses only
-scalar identity metadata. With `--provider-archive ...`, it independently
+--data-root ... --write-receipt outputs/provider-preflight.json` to check exact
+provider membership, the prepared 85/15/13/12 counts, and event-ID disjointness
+across all four roles. It accesses only scalar identity metadata. Pass the
+resulting receipt to `run_evidence_pipeline.py` with
+`--provider-preflight-receipt outputs/provider-preflight.json`; the pipeline
+recomputes the current metadata fingerprint and fails closed on any data-root,
+identity, role-config, or provider-ledger mismatch. With `--provider-archive
+...`, the validator independently
 matches all 125 directories from the ZIP central directory without opening a
 payload member.
 
-The `--data-root` validation is a required preflight for a paper-scale evidence
-run. `run_evidence_pipeline.py` validates alias structure and observed
-development/calibration/evaluation ID separation, but it does not itself bind
-all prepared files to the 125 provider event-name/archive-directory records.
+The receipt SHA, normalization SHA, calibration-configuration SHA, provider
+ledger SHA, role-configuration SHA, prepared-identity SHA, and all three
+checkpoint SHAs are written to the final evidence record.
 
 ## Determinism
 
