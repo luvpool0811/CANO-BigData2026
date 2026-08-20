@@ -185,7 +185,7 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def prepared_identity_fingerprint(
+def evaluation_data_identity_fingerprint(
     data_root: Path, role_contracts: Mapping[str, RoleContract]
 ) -> dict[str, Any]:
     records: list[dict[str, str]] = []
@@ -196,7 +196,7 @@ def prepared_identity_fingerprint(
         paths = sorted((data_root / contract.directory).glob("*.npz"))
         if len(paths) != contract.count:
             raise ValueError(
-                f"provider preflight binding found {len(paths)} {role} files; "
+                f"data-integrity verification found {len(paths)} {role} files; "
                 f"expected {contract.count}"
             )
         for path in paths:
@@ -209,7 +209,7 @@ def prepared_identity_fingerprint(
                 if any(key not in payload for key in required):
                     raise ValueError(
                         f"{path.name} lacks provider identity metadata required "
-                        "by the preflight receipt"
+                        "by the data-integrity verification record"
                     )
                 event_id = str(payload["event_id"].item())
                 provider_name = str(payload["provider_event_name"].item())
@@ -239,52 +239,54 @@ def prepared_identity_fingerprint(
         "role_counts": counts,
         "unique_event_ids": len(event_owners),
         "provider_identities_matched": len(provider_paths),
-        "prepared_identity_sha256": hashlib.sha256(canonical).hexdigest(),
+        "evaluation_data_identity_sha256": hashlib.sha256(canonical).hexdigest(),
     }
 
 
-def _verify_provider_preflight_receipt(
+def _verify_data_integrity_record(
     *,
-    receipt_path: Path,
+    record_path: Path,
     data_root: Path,
     role_config_path: Path,
     role_config: Mapping[str, Any],
     role_contracts: Mapping[str, RoleContract],
 ) -> dict[str, Any]:
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    record = json.loads(record_path.read_text(encoding="utf-8"))
     membership_name = role_config.get("public_membership_file")
     membership_path = role_config_path.parent / str(membership_name)
     expected_counts = {
         role: contract.count for role, contract in role_contracts.items()
     }
     try:
-        current = prepared_identity_fingerprint(data_root.resolve(), role_contracts)
+        current = evaluation_data_identity_fingerprint(
+            data_root.resolve(), role_contracts
+        )
     except (OSError, TypeError, ValueError) as error:
         raise ValueError(
-            "provider preflight receipt does not bind the current data root, "
-            "role contract, and provider identities"
+            "data-integrity verification record does not bind the current data "
+            "root, role contract, and evaluation-data identities"
         ) from error
     if (
-        receipt.get("schema_id") != "cano_provider_preflight_receipt_v1"
-        or receipt.get("status") != "PASS"
-        or Path(str(receipt.get("data_root_resolved", ""))).resolve()
+        record.get("schema_id") != "cano_evaluation_data_integrity_record_v1"
+        or record.get("status") != "PASS"
+        or Path(str(record.get("data_root_resolved", ""))).resolve()
         != data_root.resolve()
-        or receipt.get("role_config_sha256") != _sha256_file(role_config_path)
+        or record.get("role_config_sha256") != _sha256_file(role_config_path)
         or not membership_path.is_file()
-        or receipt.get("provider_membership_sha256")
+        or record.get("provider_membership_sha256")
         != _sha256_file(membership_path)
-        or receipt.get("role_counts") != expected_counts
-        or receipt.get("field_arrays_opened") != 0
-        or receipt.get("identity_metadata_only") is not True
-        or any(receipt.get(key) != value for key, value in current.items())
+        or record.get("role_counts") != expected_counts
+        or record.get("field_arrays_opened") != 0
+        or record.get("identity_metadata_only") is not True
+        or any(record.get(key) != value for key, value in current.items())
     ):
         raise ValueError(
-            "provider preflight receipt does not bind the current data root, "
-            "role contract, and provider identities"
+            "data-integrity verification record does not bind the current data "
+            "root, role contract, and evaluation-data identities"
         )
     return {
         **current,
-        "provider_preflight_receipt_sha256": _sha256_file(receipt_path),
+        "data_integrity_verification_record_sha256": _sha256_file(record_path),
         "role_config_sha256": _sha256_file(role_config_path),
         "provider_membership_sha256": _sha256_file(membership_path),
     }
@@ -297,7 +299,7 @@ def run_evidence_pipeline(
     normalization_path: Path,
     role_config_path: Path,
     calibration_config_path: Path,
-    provider_preflight_receipt_path: Path,
+    data_integrity_record_path: Path,
     output_path: Path,
     device: str,
     upstream_source: Path | None = None,
@@ -305,8 +307,8 @@ def run_evidence_pipeline(
 ) -> dict[str, Any]:
     role_config = _load_yaml(role_config_path)
     role_contracts = validate_role_contracts(role_config)
-    provider_binding = _verify_provider_preflight_receipt(
-        receipt_path=provider_preflight_receipt_path,
+    provider_binding = _verify_data_integrity_record(
+        record_path=data_integrity_record_path,
         data_root=data_root,
         role_config_path=role_config_path,
         role_config=role_config,
@@ -489,7 +491,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--normalization", type=Path, required=True)
     parser.add_argument(
-        "--provider-preflight-receipt", type=Path, required=True
+        "--data-integrity-record", type=Path, required=True
     )
     parser.add_argument(
         "--role-config",
@@ -514,7 +516,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         normalization_path=args.normalization,
         role_config_path=args.role_config,
         calibration_config_path=args.calibration_config,
-        provider_preflight_receipt_path=args.provider_preflight_receipt,
+        data_integrity_record_path=args.data_integrity_record,
         output_path=args.output,
         device=args.device,
         upstream_source=args.upstream_source,
@@ -527,7 +529,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 __all__ = [
     "PhysicalEvent",
     "RoleContract",
-    "prepared_identity_fingerprint",
+    "evaluation_data_identity_fingerprint",
     "run_evidence_pipeline",
     "validate_role_contracts",
     "main",

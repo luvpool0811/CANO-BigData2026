@@ -42,7 +42,8 @@ p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 �
 contrast, 경험적/CRC 보정, 배포경계, 주장-근거, baseline 공정성 표와 Fig. 2/3
 형식 그림을 재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 저장소에 포함된
 공개 역할 ledger, 재현 수준, WIS 해석 범위를 검사합니다. prepared data와 provider
-identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도로 검사합니다.
+identity의 정확한 결속은 아래 `--data-root` 평가 데이터 정체성 및 분할 무결성
+검증이 별도로 검사합니다.
 모든 명령은 데이터 다운로드나 GPU를 요구하지 않습니다.
 
 ## 핵심 운영 신뢰도 근거
@@ -58,11 +59,14 @@ identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도�
   estimand, bootstrap, 허용 주장까지 한 행에 정리한 완전한 평가 명세
 - `results/paper/target_calibration.csv`: 논문 Table I Panel A의 4개 경험적 보정 설정
 - `results/paper/crc_calibration.csv`: Table I Panel B의 Berlin I/II 유한표본 CRC
-  요약, 보정된 허용 사건위험과 저장된 ACE 신뢰구간
+  요약, 보정된 허용 사건위험, 저장된 ACE 신뢰구간, 빈 사건 추정대상과 반복별
+  보정자 재적합 계약
 - `results/paper/deployment_budget_effects.csv`: Fig. 3(a)의 예산/발생률 점과
   저장된 신뢰구간 9개
 - `results/paper/warning_rule_migration.csv`: Fig. 3(b)의 36개 기술적 최저손실
-  전략, 관측 손실과 차순위 격차. 이는 정책 우월성에 대한 추론 검정이 아닙니다.
+  전략, 정확한 유병률 가중 사건매크로 손실, 관측 손실과 차순위 격차. 격차가
+  $10^{-4}$ 이하인 표시용 근접 동률도 명시하며, 이는 정책 우월성에 대한 추론
+  검정이 아닙니다.
 - `results/paper/claim_evidence.csv`: 주장별 추정대상, 독립 단위, 재표집,
   calibrator 처리, 다중검정, 사전지정 여부, 해석 경계
 - `results/paper/baseline_fairness.csv`: 후보 설정, 개발자료 선택 규칙, seed,
@@ -94,9 +98,9 @@ UFC 운영 분석의 프로토콜 정렬 DNO는 Table II의 DNO-3 adaptation이 
 
 - **통계 재계산:** Table II 평균과 CANO--baseline 사건쌍 비교 6개는 공개된
   48개 사건행에서 다시 계산합니다.
-- **검증된 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림, Table I
-  Panel A/B와 Fig. 3 배포경계는 보고 단위 요약값을 검증하고 재생성하며,
-  field-array bootstrap은 다시 실행하지 않습니다.
+- **보관 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림, Table I
+  Panel A/B와 Fig. 3 배포경계는 보관된 집계·보고 요약값을 검증하고 재생성하며,
+  field-array bootstrap과 보정자 재적합은 다시 실행하지 않습니다.
 - **provider 의존 코드 경로:** 논문 규모 표준 목적함수 학습·평가는 provider data와
   checkpoint가 필요합니다. compact package는 프로토콜 정렬 DNO, UFB/WB2 운영
   분석 또는 peak-aware 학습을 end-to-end로 재현하지 않습니다.
@@ -170,17 +174,17 @@ population의 architecture-only 인과 비교가 아닙니다.
 유한표본 CRC는 `crc_maximum_empirical_event_risk`로 사건손실 보정 한계를
 계산하고 `fit_event_balanced_crc`로 사건균등 잔차 임계값을 적합할 수 있습니다.
 다만 provider field array를 재배포하지 않으므로 논문의 CRC 표는 명시적으로
-요약 재생성 범위에 머뭅니다.
+보관 요약 재생성 범위에 머뭅니다.
 
-논문 규모 실행에서는 provider identity 검사를 별도의 필수 preflight로 먼저
-수행합니다. 이 검사는 `input`, `target`, `mask`를 열지 않고 `event_id`,
+논문 규모 실행에서는 평가 데이터 정체성 및 분할 무결성 검증을 별도의 필수
+절차로 먼저 수행합니다. 이 검사는 `input`, `target`, `mask`를 열지 않고 `event_id`,
 `provider_event_name`, `provider_relative_path` metadata만 읽어 준비된 125개
 identity를 공개 85/15/13/12 역할 ledger와 정확히 대조합니다.
 
 ```bash
 python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i \
-  --write-receipt outputs/provider-preflight.json
+  --write-data-integrity-record outputs/data-integrity-verification.json
 ```
 
 이 검사가 PASS한 뒤, 3개 동결 checkpoint에서 전체 증거 사슬을 실행합니다.
@@ -192,28 +196,28 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
-  --provider-preflight-receipt outputs/provider-preflight.json \
+  --data-integrity-record outputs/data-integrity-verification.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
-pipeline은 receipt가 현재 data-root 경로, 125개 identity metadata, 역할 설정과
+pipeline은 데이터 무결성 검증 기록이 현재 data-root 경로, 125개 identity metadata, 역할 설정과
 provider ledger에 결속되지 않으면 모델 평가 전에 실패합니다. 최종 evidence에는
-receipt, normalization, calibration 설정과 세 checkpoint의 hash도 기록됩니다.
+검증 기록, normalization, calibration 설정과 세 checkpoint의 hash도 기록됩니다.
 
 이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
 노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
 평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
-증거 사슬은 field array를 읽기 전에 현재 identity metadata를 receipt와 다시
+증거 사슬은 field array를 읽기 전에 현재 identity metadata를 검증 기록과 다시
 대조하고, 실행 중 개발·보정·평가 event ID의 역할 내 중복과 역할 간 중복을
 즉시 거부합니다. 산출물에는 실제 ID 대신 공개 alias, namespace가 적용된 digest와
 입력 결속 hash를 기록합니다.
 
 각 NPZ에는 `berlin_i_role_membership.csv`의 `provider_event_name`과
 `provider_relative_path` metadata도 들어 있어야 합니다. 위 prepared-data
-preflight가 이 metadata로 정확한 역할 배정을 확인합니다. 원본 provider ZIP이
+데이터 무결성 검증이 이 metadata로 정확한 역할 배정을 확인합니다. 원본 provider ZIP이
 있다면 payload를 열지 않고 central directory를 추가로 직접 대조할 수도 있습니다.
 
 ```bash

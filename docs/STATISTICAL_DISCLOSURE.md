@@ -27,6 +27,20 @@ population from its own prediction and is evaluated with its own development-
 fitted node scale and calibration quantile. It is therefore neither a common-
 population contrast nor an architecture-only causal comparison.
 
+For finite-sample CRC, the estimand is event-mean loss conditional on a
+nonempty prediction-selected population. Empty events are recorded separately
+and excluded symmetrically from calibration and evaluation. Each stored paired
+bootstrap contract resamples calibration and evaluation events separately with
+replacement, applies common indices across matched methods, and refits every
+CRC and empirical calibrator before evaluating the resampled events. The public
+package validates and renders this archived aggregate reporting summary; it does
+not rerun the field-array bootstrap.
+
+The Fig. 3(b) winner map minimizes the event-macro prevalence-weighted warning
+loss $L_{\mathrm{prev},e}=(r\,\mathrm{FN}_e+\mathrm{FP}_e)/N_e$. A near tie is
+a display annotation for a winner--runner-up gap at most $10^{-4}$; it is not
+an equivalence test or an inferential policy comparison.
+
 ## Baseline setting and training exposure
 
 `results/paper/baseline_fairness.csv` reports the candidate count, development-

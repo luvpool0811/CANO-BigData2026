@@ -167,8 +167,10 @@ def validate_static_contract(root: Path) -> dict[str, object]:
     }
 
 
-def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object]:
-    """Check exact provider split membership without reading field arrays."""
+def validate_evaluation_data_identity_and_split_integrity(
+    root: Path, data_root: Path
+) -> dict[str, object]:
+    """Verify evaluation-data identity and split integrity without field arrays."""
 
     _, contracts = _role_configuration(root.resolve())
     membership = _provider_membership(root.resolve())
@@ -239,24 +241,24 @@ def validate_prepared_split_ids(root: Path, data_root: Path) -> dict[str, object
         "role_counts": counts,
         "unique_event_ids": len(owner),
         "provider_identities_matched": len(observed_provider_paths),
-        "prepared_identity_sha256": _identity_digest(identity_records),
+        "evaluation_data_identity_sha256": _identity_digest(identity_records),
         "field_arrays_opened": 0,
         "identity_metadata_only": True,
     }
 
 
-def create_provider_preflight_receipt(
+def create_data_integrity_verification_record(
     root: Path, data_root: Path, output_path: Path
 ) -> dict[str, object]:
-    """Create the provider-bound receipt required by the evidence pipeline."""
+    """Create the data-integrity verification record required by the pipeline."""
 
     root = root.resolve()
     data_root = data_root.resolve()
-    result = validate_prepared_split_ids(root, data_root)
+    result = validate_evaluation_data_identity_and_split_integrity(root, data_root)
     role_config_path = root / "configs/evaluation/berlin_i_roles.yaml"
     membership_path = root / "configs/evaluation/berlin_i_role_membership.csv"
-    receipt: dict[str, object] = {
-        "schema_id": "cano_provider_preflight_receipt_v1",
+    record: dict[str, object] = {
+        "schema_id": "cano_evaluation_data_integrity_record_v1",
         "status": "PASS",
         "data_root_resolved": str(data_root),
         "role_config_sha256": _sha256_file(role_config_path),
@@ -265,13 +267,13 @@ def create_provider_preflight_receipt(
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    return receipt
+    return record
 
 
-def validate_provider_archive_membership(root: Path, archive: Path) -> dict[str, object]:
-    """Match the public ledger to provider ZIP directory identities only."""
+def validate_source_archive_membership(root: Path, archive: Path) -> dict[str, object]:
+    """Match the public ledger to source-archive directory identities only."""
 
     expected = {row["provider_relative_path"] for row in _provider_membership(root)}
     prefix = "UrbanFloodCast_Dataset/BerlinI/Seen regions and unseen rainfall events/"
@@ -309,21 +311,25 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--provider-archive", type=Path)
-    parser.add_argument("--write-receipt", type=Path)
+    parser.add_argument("--write-data-integrity-record", type=Path)
     args = parser.parse_args(argv)
     result = validate_static_contract(args.root)
     if args.data_root is not None:
-        result["prepared_split_check"] = validate_prepared_split_ids(
+        result["data_integrity_verification"] = (
+            validate_evaluation_data_identity_and_split_integrity(
             args.root, args.data_root
+            )
         )
-    if args.write_receipt is not None:
+    if args.write_data_integrity_record is not None:
         if args.data_root is None:
-            parser.error("--write-receipt requires --data-root")
-        result["provider_preflight_receipt"] = create_provider_preflight_receipt(
-            args.root, args.data_root, args.write_receipt
+            parser.error("--write-data-integrity-record requires --data-root")
+        result["data_integrity_verification_record"] = (
+            create_data_integrity_verification_record(
+                args.root, args.data_root, args.write_data_integrity_record
+            )
         )
     if args.provider_archive is not None:
-        result["provider_archive_check"] = validate_provider_archive_membership(
+        result["source_archive_membership_verification"] = validate_source_archive_membership(
             args.root.resolve(), args.provider_archive
         )
     print(json.dumps(result, sort_keys=True))
@@ -332,8 +338,8 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "main",
-    "create_provider_preflight_receipt",
-    "validate_prepared_split_ids",
-    "validate_provider_archive_membership",
+    "create_data_integrity_verification_record",
+    "validate_evaluation_data_identity_and_split_integrity",
+    "validate_source_archive_membership",
     "validate_static_contract",
 ]

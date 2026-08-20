@@ -40,6 +40,7 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
         "crc_calibration_rows": 2,
         "deployment_budget_rows": 9,
         "warning_rule_rows": 36,
+        "warning_near_tie_rows": 8,
         "claim_rows": 14,
         "fairness_rows": 4,
         "hpo_candidate_rows": 24,
@@ -123,6 +124,35 @@ def test_crc_correction_tamper_is_rejected(tmp_path: Path) -> None:
         validate_operational_inputs(copied)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("calibrator_refit_each_replicate", "false"),
+        ("common_method_indices", "false"),
+        ("empty_event_policy", "treat empty events as zero loss"),
+    ),
+)
+def test_crc_resampling_contract_tamper_is_rejected(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    copied = tmp_path / "paper"
+    _copy_csvs(root / "results/paper", copied)
+    path = copied / "crc_calibration.csv"
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        fields = reader.fieldnames
+    assert fields is not None
+    rows[0][field] = value
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="CRC resampling and refit contract"):
+        validate_operational_inputs(copied)
+
+
 def test_deployment_kappa_tamper_is_rejected(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[1]
     copied = tmp_path / "paper"
@@ -158,6 +188,34 @@ def test_warning_strategy_code_tamper_is_rejected(tmp_path: Path) -> None:
         writer.writeheader()
         writer.writerows(rows)
     with pytest.raises(ValueError, match="code does not match"):
+        validate_operational_inputs(copied)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        ("loss_name", "unspecified warning loss", "loss definition"),
+        ("near_tie", "true", "near-tie marker"),
+    ),
+)
+def test_warning_loss_contract_tamper_is_rejected(
+    tmp_path: Path, field: str, value: str, message: str
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    copied = tmp_path / "paper"
+    _copy_csvs(root / "results/paper", copied)
+    path = copied / "warning_rule_migration.csv"
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        fields = reader.fieldnames
+    assert fields is not None
+    rows[0][field] = value
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match=message):
         validate_operational_inputs(copied)
 
 
