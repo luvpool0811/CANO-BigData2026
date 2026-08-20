@@ -40,9 +40,10 @@ python scripts/validate_public_contract.py
 6개 사전지정 사건쌍 비교의 효과크기, bootstrap 신뢰구간, exact sign-flip
 p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 운영대상
 contrast, target calibration, 주장-근거, baseline 공정성 표와 중심 효과 그림을
-재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 공개 역할
-membership, 재현 수준, WIS 해석 범위를 함께 검사합니다. 모든 명령은 데이터 다운로드나
-GPU를 요구하지 않습니다.
+재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 저장소에 포함된
+공개 역할 ledger, 재현 수준, WIS 해석 범위를 검사합니다. prepared data와 provider
+identity의 정확한 결속은 아래 `--data-root` 필수 preflight가 별도로 검사합니다.
+모든 명령은 데이터 다운로드나 GPU를 요구하지 않습니다.
 
 ## 핵심 운영 신뢰도 근거
 
@@ -65,10 +66,34 @@ GPU를 요구하지 않습니다.
 - `results/paper/reproducibility_scope.csv`: 사건행 기반 통계 재계산, 요약값 기반
   재생성, provider data/checkpoint가 필요한 코드 경로의 구분
 
-UFB/UFC/WB2 운영대상 표와 그림은 공개 reporting-unit 요약값에서 재생성하며,
-field array에서 통계를 다시 계산하지 않습니다. 반면 CANO--baseline 6개 사건쌍
-비교는 공개된 48개 사건행에서 통계를 다시 계산합니다. 이 범위 차이를 공개
-계약에 명시했습니다.
+### 예측기와 근거의 위계
+
+| 근거 블록 | 고정 예측기/시스템 | 허용되는 주장 |
+|---|---|---|
+| UFB California/Tennessee | UFB 좌표질의 예측기 | 운영 대비의 개발 근거 |
+| UFC RQ1--RQ4 및 Table I의 해당 Berlin I 행 | 프로토콜 정렬 DNO | 사전지정 외부 운영 신뢰도 근거 |
+| WB2 유사 대비 | 고정 Pangu-Weather 예측 | 교차도메인 방향 근거 |
+| Table II | 공통 절차로 학습한 CANO, DNO-3, FNO3D, U-Net3D | 독립적으로 보정한 완전한 시스템의 보조 통제 비교 |
+| CANO 목적함수 절제실험 | CANO 표준·일치대조·peak-aware 목적함수 | 동일 사건 기반 비확증적 후속 근거 |
+
+UFC 운영 분석의 프로토콜 정렬 DNO는 Table II의 DNO-3 adaptation이 아니며,
+운영 RQ 값을 CANO 결과로 귀속해서는 안 됩니다. 정확한 예측기 정체성과 seed 역할은
+[`docs/PREDICTOR_SEED_CONTRACT.md`](docs/PREDICTOR_SEED_CONTRACT.md)에 공개합니다.
+
+### 공개 재현 범위
+
+- **통계 재계산:** Table II 평균과 CANO--baseline 사건쌍 비교 6개는 공개된
+  48개 사건행에서 다시 계산합니다.
+- **검증된 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림과 Table I은
+  보고 단위 요약값을 검증하고 재생성하며, field-array bootstrap은 다시 실행하지
+  않습니다.
+- **provider 의존 코드 경로:** 논문 규모 표준 목적함수 학습·평가는 provider data와
+  checkpoint가 필요합니다. compact package는 프로토콜 정렬 DNO, UFB/WB2 운영
+  분석 또는 peak-aware 학습을 end-to-end로 재현하지 않습니다.
+
+이는 모든 논문 통계를 재배포 field array에서 재계산한다는 주장이 아니라 명시적인
+공개 계약입니다. 기계 판독 범위는
+[`reproducibility_scope.csv`](results/paper/reproducibility_scope.csv)에 있습니다.
 
 세부 통계 가정과 WIS 신뢰구간의 조건부 해석은
 [`docs/STATISTICAL_DISCLOSURE.md`](docs/STATISTICAL_DISCLOSURE.md)에 정리했습니다.
@@ -133,7 +158,17 @@ population의 architecture-only 인과 비교가 아닙니다.
 사건에서, 사건 동일가중 잔차 분위수는 별도 calibration 사건에서 적합한 뒤
 평가 사건에 적용하도록 분리했습니다.
 
-3개 동결 checkpoint에서 전체 증거 사슬을 실행하려면 다음 명령을 사용합니다.
+논문 규모 실행에서는 provider identity 검사를 별도의 필수 preflight로 먼저
+수행합니다. 이 검사는 `input`, `target`, `mask`를 열지 않고 `event_id`,
+`provider_event_name`, `provider_relative_path` metadata만 읽어 준비된 125개
+identity를 공개 85/15/13/12 역할 ledger와 정확히 대조합니다.
+
+```bash
+python scripts/validate_public_contract.py \
+  --data-root /path/to/prepared/berlin-i
+```
+
+이 검사가 PASS한 뒤, 3개 동결 checkpoint에서 전체 증거 사슬을 실행합니다.
 
 ```bash
 python scripts/run_evidence_pipeline.py \
@@ -151,23 +186,16 @@ python scripts/run_evidence_pipeline.py \
 이 명령은 세 seed의 예측을 물리 단위에서 평균하고, 개발 15개 사건에서
 노드별 scale을 적합하고, 분리된 13개 사건에서 calibration한 다음, 12개
 평가 사건을 한 번씩 평가합니다. 역할 계약에는 학습 85개 사건도 명시합니다.
-실행 전 125개 공개 alias와 provider 사건명·archive directory의 정확한 역할
-배정을 검사하고, 실행 중 개발·보정·평가 event ID 중복을 즉시 거부합니다.
-산출물에는 실제 ID 대신 공개 alias와 namespace가 적용된 digest를 기록합니다.
-
-논문 규모 실행 전에는 field array를 열지 않고 네 준비 split의 사건 ID 중복을
-검사할 수 있습니다.
-
-```bash
-python scripts/validate_public_contract.py \
-  --data-root /path/to/prepared/berlin-i
-```
+증거 사슬 명령 자체는 공개 alias와 역할 구조를 검사하고 실행 중
+개발·보정·평가 event ID의 역할 내 중복과 역할 간 중복을 즉시 거부합니다.
+그러나 준비 파일을 125개 provider 사건명·archive directory 행과 독립적으로
+결속하지는 않으며, 그 결속은 위 필수 preflight가 담당합니다. 산출물에는 실제
+ID 대신 공개 alias와 namespace가 적용된 digest를 기록합니다.
 
 각 NPZ에는 `berlin_i_role_membership.csv`의 `provider_event_name`과
-`provider_relative_path` metadata도 들어 있어야 합니다. 검사는 이 metadata만
-읽어 125개 provider identity가 85/15/13/12 역할에 정확히 배정됐는지 확인하며
-`input`, `target`, `mask`는 열지 않습니다. 원본 provider ZIP이 있다면 payload를
-열지 않고 central directory만 직접 대조할 수도 있습니다.
+`provider_relative_path` metadata도 들어 있어야 합니다. 위 prepared-data
+preflight가 이 metadata로 정확한 역할 배정을 확인합니다. 원본 provider ZIP이
+있다면 payload를 열지 않고 central directory를 추가로 직접 대조할 수도 있습니다.
 
 ```bash
 python scripts/validate_public_contract.py \

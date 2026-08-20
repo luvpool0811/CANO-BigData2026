@@ -5,6 +5,13 @@ published by the UrbanFloodCast authors. Their source files are not copied or
 modified here. `urbanfloodcast_adapters.py` performs only the interface work
 needed for a controlled comparison.
 
+This controlled-comparison DNO-3 is distinct from the protocol-aligned DNO used
+as the fixed predictor in the UFC operational RQ1--RQ4 analyses. DNO-3 imports
+the public DNO architecture core at the pinned revision below and is retrained
+under the Table II contract; the operational DNO is a study-owned
+protocol-aligned implementation. Exact identities and random seeds are listed
+in [`PREDICTOR_SEED_CONTRACT.md`](PREDICTOR_SEED_CONTRACT.md).
+
 ## Source checkout
 
 ```bash
