@@ -9,8 +9,9 @@ import numpy as np
 import pytest
 
 from cano_bigdata2026.public_contract import (
-    create_data_integrity_verification_record,
-    validate_evaluation_data_identity_and_split_integrity,
+    IDENTITY_METADATA_RECORD_SCHEMA,
+    create_identity_metadata_verification_record,
+    validate_prepared_identity_metadata_and_role_assignment,
     validate_source_archive_membership,
     validate_static_contract,
 )
@@ -31,6 +32,8 @@ def test_checked_in_public_contract() -> None:
         "reproducibility_scope_rows": 9,
         "table_ii_event_rows_recomputed": 48,
         "table_ii_metrics_recomputed": 7,
+        "table_ii_csi_metrics_regenerated": 4,
+        "paired_baseline_contrasts_recomputed": 6,
         "raw_field_arrays_opened": 0,
     }
 
@@ -64,16 +67,16 @@ def test_prepared_split_identity_check_reads_metadata_only(tmp_path: Path) -> No
                 f"{directory}-{index:03d}",
                 row,
             )
-    result = validate_evaluation_data_identity_and_split_integrity(ROOT, tmp_path)
+    result = validate_prepared_identity_metadata_and_role_assignment(ROOT, tmp_path)
     assert result["unique_event_ids"] == 125
     assert result["field_arrays_opened"] == 0
     assert result["identity_metadata_only"] is True
     assert result["provider_identities_matched"] == 125
     assert len(result["evaluation_data_identity_sha256"]) == 64
 
-    record_path = tmp_path / "data-integrity-verification.json"
-    record = create_data_integrity_verification_record(ROOT, tmp_path, record_path)
-    assert record["schema_id"] == "cano_evaluation_data_integrity_record_v1"
+    record_path = tmp_path / "identity-metadata-verification.json"
+    record = create_identity_metadata_verification_record(ROOT, tmp_path, record_path)
+    assert record["schema_id"] == IDENTITY_METADATA_RECORD_SCHEMA
     assert record["evaluation_data_identity_sha256"] == result[
         "evaluation_data_identity_sha256"
     ]
@@ -83,7 +86,7 @@ def test_prepared_split_identity_check_reads_metadata_only(tmp_path: Path) -> No
     evaluation = next(row for row in membership if row["directory"] == "test")
     _metadata_event(duplicate, "train-000", evaluation)
     with pytest.raises(ValueError, match="overlaps prepared roles"):
-        validate_evaluation_data_identity_and_split_integrity(ROOT, tmp_path)
+        validate_prepared_identity_metadata_and_role_assignment(ROOT, tmp_path)
 
 
 def test_prepared_provider_identity_tamper_is_rejected(tmp_path: Path) -> None:
@@ -102,7 +105,7 @@ def test_prepared_provider_identity_tamper_is_rejected(tmp_path: Path) -> None:
     row = next(item for item in membership if item["directory"] == "train")
     _metadata_event(path, "test-000", row)
     with pytest.raises(ValueError, match="not assigned to role evaluation"):
-        validate_evaluation_data_identity_and_split_integrity(ROOT, tmp_path)
+        validate_prepared_identity_metadata_and_role_assignment(ROOT, tmp_path)
 
 
 def test_provider_zip_directory_identity_matches_without_payload_reads(

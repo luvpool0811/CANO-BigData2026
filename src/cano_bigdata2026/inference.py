@@ -244,7 +244,11 @@ def _forest_plot(rows: Sequence[dict[str, object]], pdf: Path, png: Path) -> Non
     figure.subplots_adjust(left=0.27, right=0.65, bottom=0.18, top=0.94)
     for path in (pdf, png):
         path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(pdf, bbox_inches="tight")
+    figure.savefig(
+        pdf,
+        bbox_inches="tight",
+        metadata={"CreationDate": None, "ModDate": None},
+    )
     figure.savefig(png, dpi=300, bbox_inches="tight")
     plt.close(figure)
 

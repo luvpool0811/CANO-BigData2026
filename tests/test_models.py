@@ -43,4 +43,16 @@ def test_cano_coordinate_query_shape_and_gradient() -> None:
     assert torch.isfinite(output).all()
     output.square().mean().backward()
     assert any(parameter.grad is not None for parameter in model.parameters())
+    assert model.decoder.log_variance_head.weight.grad is None
+    assert model.decoder.exceedance_head.weight.grad is None
+    assert model.decoder.h_head.weight.grad is not None
 
+
+def test_cano_dense_query_lattice_matches_align_corners_contract() -> None:
+    model = build_model("cano", OFFICIAL)
+    inputs = torch.zeros(2, 31, 3, 4)
+    lattice = model._dense_query_lattice(inputs)
+    assert lattice.shape == (2, 12, 2)
+    assert torch.equal(lattice[0], lattice[1])
+    assert torch.equal(lattice[0, 0], torch.tensor([-1.0, -1.0]))
+    assert torch.equal(lattice[0, -1], torch.tensor([1.0, 1.0]))

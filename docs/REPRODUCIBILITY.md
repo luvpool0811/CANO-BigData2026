@@ -82,7 +82,10 @@ its rendered form is `results/generated/reproducibility_scope.md`.
 | Aggregate regeneration | A reported aggregate row is validated and rendered. |
 | Code path only | Provider data or frozen checkpoints are required for paper-scale execution. |
 
-The six paired CANO--baseline contrasts are statistic recomputations. The
+Seven non-CSI Table II metrics for each standard system and the six paired
+CANO--baseline contrasts are statistic recomputations from the 48 public event
+rows. The four CSI columns are aggregate regeneration from `main_results.csv`,
+not event-level statistic recomputation. The
 central UFB/UFC/WB2 operational contrasts, target-calibration profiles, CRC
 sensitivity rows, and deployment-boundary records are archived-summary regenerations.
 The fitting code for empirical event-balanced calibration and finite-sample
@@ -111,15 +114,19 @@ population is selected from the prediction and a 0.30 m threshold; the unknown
 target does not define membership. This operational threshold is distinct from
 the model-independent truth-wet mask, which uses $H\geq0.01$ m for wet RMSE and
 wet NSE. `evaluate_event` preserves one evidence record per physical event
-before event-macro aggregation.
+before event-macro aggregation. Calibration fitting fails closed on an empty
+prediction-selected event unless `empty_event_policy="exclude"` is explicitly
+chosen for an estimand conditional on nonempty events.
 
 ## Finite-sample CRC
 
 `crc_maximum_empirical_event_risk` implements the bounded-loss correction
 \(\widehat R\leq[\alpha(n+1)-1]/n\), and `fit_event_balanced_crc` fits the
 smallest normalized-residual threshold satisfying the corrected event-mean
-risk constraint. Both functions operate on one residual-score array per
-nonempty calibration event and are unit-tested, including the uninformative
+risk constraint. The fitter fails closed on an empty selected event;
+`empty_event_policy="exclude"` must be supplied explicitly for the documented
+estimand conditional on nonempty events and requires symmetric calibration and
+evaluation handling. Both functions are unit-tested, including the uninformative
 small-sample fallback. `crc_calibration.csv` contains the two frozen Table I
 Panel B archived aggregate reporting summaries. They additionally disclose that empty
 events are excluded symmetrically and that calibration and evaluation events
@@ -154,20 +161,21 @@ digests.
 
 `configs/evaluation/berlin_i_role_membership.csv` expands the 125-row public
 role contract and binds every alias to the provider split, event name, and
-archive-relative directory. Run the evaluation-data identity and split-integrity
+archive-relative directory. Run the prepared identity-metadata and role-assignment
 verification with `scripts/validate_public_contract.py
---data-root ... --write-data-integrity-record outputs/data-integrity-verification.json` to check exact
+--data-root ... --write-identity-metadata-record outputs/identity-metadata-verification.json` to check exact
 provider membership, the prepared 85/15/13/12 counts, and event-ID disjointness
-across all four roles. It accesses only scalar identity metadata. Pass the
-resulting data-integrity verification record to `run_evidence_pipeline.py` with
-`--data-integrity-record outputs/data-integrity-verification.json`; the pipeline
+across all four roles. It accesses only scalar identity metadata and is not a
+field-array checksum or independent proof of provider payload content. Pass the
+resulting identity-metadata verification record to `run_evidence_pipeline.py` with
+`--identity-metadata-record outputs/identity-metadata-verification.json`; the pipeline
 recomputes the current metadata fingerprint and fails closed on any data-root,
 identity, role-config, or provider-ledger mismatch. With `--provider-archive
 ...`, the validator independently
 matches all 125 directories from the ZIP central directory without opening a
 payload member.
 
-The data-integrity verification-record SHA, normalization SHA,
+The identity-metadata verification-record SHA, normalization SHA,
 calibration-configuration SHA, provider ledger SHA, role-configuration SHA,
 evaluation-data-identity SHA, and all three
 checkpoint SHAs are written to the final evidence record.
@@ -177,6 +185,9 @@ checkpoint SHAs are written to the final evidence record.
 Training seeds are explicit in every command and configuration. CUDA kernels
 can still exhibit platform-dependent numerical differences. Record the GPU,
 CUDA, PyTorch, and driver versions with any independently reproduced result.
+Generated publication PDFs omit volatile creation/modification timestamps, so
+identical inputs and software produce byte-identical PDFs in the tested
+environment.
 The complete cross-analysis registry, including the distinction between the
 UFC operational DNO and the Table II DNO-3 adaptation, is in
 [`PREDICTOR_SEED_CONTRACT.md`](PREDICTOR_SEED_CONTRACT.md).

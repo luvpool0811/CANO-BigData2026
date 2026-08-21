@@ -11,7 +11,7 @@ import yaml
 
 from cano_bigdata2026.models import build_model
 from cano_bigdata2026.workflow import (
-    evaluation_data_identity_fingerprint,
+    prepared_identity_metadata_fingerprint,
     run_evidence_pipeline,
     validate_role_contracts,
 )
@@ -107,12 +107,12 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     )
     output = tmp_path / "evidence.json"
     role_contracts = validate_role_contracts(yaml.safe_load(roles.read_text()))
-    identity = evaluation_data_identity_fingerprint(data, role_contracts)
-    record = tmp_path / "data-integrity-verification.json"
+    identity = prepared_identity_metadata_fingerprint(data, role_contracts)
+    record = tmp_path / "identity-metadata-verification.json"
     record.write_text(
         json.dumps(
             {
-                "schema_id": "cano_evaluation_data_integrity_record_v1",
+                "schema_id": "cano_evaluation_identity_metadata_verification_record_v1",
                 "status": "PASS",
                 "data_root_resolved": str(data.resolve()),
                 "role_config_sha256": _sha256(roles),
@@ -131,7 +131,7 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
         normalization_path=normalization,
         role_config_path=roles,
         calibration_config_path=calibration,
-        data_integrity_record_path=record,
+        identity_metadata_record_path=record,
         output_path=output,
         device="cpu",
         query_chunk_size=16,
@@ -152,7 +152,7 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
     assert payload["input_bindings"]["evaluation_data_identity_sha256"] == identity[
         "evaluation_data_identity_sha256"
     ]
-    assert payload["input_bindings"]["data_integrity_verification_record_sha256"] == _sha256(
+    assert payload["input_bindings"]["identity_metadata_verification_record_sha256"] == _sha256(
         record
     )
     assert len(payload["role_identity"]["event_id_digests"]["evaluation"]) == 1
@@ -178,14 +178,14 @@ def test_three_seed_evidence_pipeline_smoke(tmp_path: Path) -> None:
         **duplicate,
         event_id=np.asarray("validation-01"),
     )
-    with pytest.raises(ValueError, match="data-integrity verification record does not bind"):
+    with pytest.raises(ValueError, match="identity-metadata verification record does not bind"):
         run_evidence_pipeline(
             checkpoints=checkpoints,
             data_root=data,
             normalization_path=normalization,
             role_config_path=roles,
             calibration_config_path=calibration,
-            data_integrity_record_path=record,
+            identity_metadata_record_path=record,
             output_path=tmp_path / "overlap.json",
             device="cpu",
             query_chunk_size=16,

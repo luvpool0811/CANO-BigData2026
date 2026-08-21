@@ -39,19 +39,20 @@ public aliases plus namespaced digests. Provider files are not redistributed;
 the event names and relative directories are metadata from the DOI-pinned
 release.
 
-After preparing the NPZ directories, run the evaluation-data identity and
-split-integrity verification with:
+After preparing the NPZ directories, run the prepared identity-metadata and
+role-assignment verification with:
 
 ```bash
 python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i \
-  --write-data-integrity-record outputs/data-integrity-verification.json
+  --write-identity-metadata-record outputs/identity-metadata-verification.json
 ```
 
 This required paper-scale check opens only scalar identity metadata, validates the exact
 provider path/name assignment and the 85/15/13/12 counts, and rejects
 duplicates within or across all four roles. It does not read `input`, `target`,
-or `mask` arrays. As an optional source-archive membership verification, the
+or `mask` arrays, and therefore is not a field-array checksum or independent
+proof of provider payload content. As an optional source-archive membership verification, the
 provider ZIP itself can be checked using `--provider-archive`; only its central
 directory is read.
 

@@ -123,6 +123,9 @@ class CoordinateDecoder(nn.Module):
             nn.LayerNorm(input_dim),
         )
         self.h_head = nn.Linear(input_dim, 1)
+        # Retained for exact public checkpoint/parameter-count compatibility.
+        # The standard paper path predicts H/U/V only; these auxiliary heads
+        # are intentionally not called by ``forward`` or the training loss.
         self.log_variance_head = nn.Linear(input_dim, 1)
         self.exceedance_head = nn.Linear(input_dim, 1)
         self.u_head = nn.Linear(input_dim, 1)
@@ -255,14 +258,26 @@ class CANO(nn.Module):
     ) -> torch.Tensor:
         return self.decode_queries(self.encode(inputs), coordinates_xy, lead)
 
-    def forward(self, inputs: torch.Tensor, query_chunk_size: int = 32768) -> torch.Tensor:
-        encoded = self.encode(inputs)
+    @staticmethod
+    def _dense_query_lattice(inputs: torch.Tensor) -> torch.Tensor:
+        """Return the canonical dense query lattice for ``align_corners=True``.
+
+        Grid Y/X remain channels in the branch encoder. The query lattice is
+        reconstructed from spatial shape so dense evaluation cannot silently
+        inherit a differently normalized coordinate channel.
+        """
+
         batch, _, height, width = inputs.shape
         yy = torch.linspace(-1.0, 1.0, height, device=inputs.device, dtype=inputs.dtype)
         xx = torch.linspace(-1.0, 1.0, width, device=inputs.device, dtype=inputs.dtype)
         gy, gx = torch.meshgrid(yy, xx, indexing="ij")
         coordinates = torch.stack([gx, gy], dim=-1).reshape(1, -1, 2)
-        coordinates = coordinates.expand(batch, -1, -1)
+        return coordinates.expand(batch, -1, -1)
+
+    def forward(self, inputs: torch.Tensor, query_chunk_size: int = 32768) -> torch.Tensor:
+        encoded = self.encode(inputs)
+        batch, _, height, width = inputs.shape
+        coordinates = self._dense_query_lattice(inputs)
         output = inputs.new_empty((batch, C.N_OUTPUT_CHANNELS, height * width))
         for lead in range(C.N_LEADS):
             for start in range(0, height * width, query_chunk_size):

@@ -18,6 +18,11 @@ from .training import CHECKPOINT_SELECTION_METRIC
 from .workflow import RoleContract, validate_role_contracts
 
 
+IDENTITY_METADATA_RECORD_SCHEMA = (
+    "cano_evaluation_identity_metadata_verification_record_v1"
+)
+
+
 def _csv_rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
@@ -163,14 +168,16 @@ def validate_static_contract(root: Path) -> dict[str, object]:
         "reproducibility_scope_rows": len(payload["reproducibility_scope.csv"]),
         "table_ii_event_rows_recomputed": recomputation["event_rows_recomputed"],
         "table_ii_metrics_recomputed": len(recomputation["metrics_recomputed"]),
+        "table_ii_csi_metrics_regenerated": 4,
+        "paired_baseline_contrasts_recomputed": 6,
         "raw_field_arrays_opened": 0,
     }
 
 
-def validate_evaluation_data_identity_and_split_integrity(
+def validate_prepared_identity_metadata_and_role_assignment(
     root: Path, data_root: Path
 ) -> dict[str, object]:
-    """Verify evaluation-data identity and split integrity without field arrays."""
+    """Verify prepared identity metadata and role assignment without field arrays."""
 
     _, contracts = _role_configuration(root.resolve())
     membership = _provider_membership(root.resolve())
@@ -247,18 +254,18 @@ def validate_evaluation_data_identity_and_split_integrity(
     }
 
 
-def create_data_integrity_verification_record(
+def create_identity_metadata_verification_record(
     root: Path, data_root: Path, output_path: Path
 ) -> dict[str, object]:
-    """Create the data-integrity verification record required by the pipeline."""
+    """Create the identity-metadata verification record required by the pipeline."""
 
     root = root.resolve()
     data_root = data_root.resolve()
-    result = validate_evaluation_data_identity_and_split_integrity(root, data_root)
+    result = validate_prepared_identity_metadata_and_role_assignment(root, data_root)
     role_config_path = root / "configs/evaluation/berlin_i_roles.yaml"
     membership_path = root / "configs/evaluation/berlin_i_role_membership.csv"
     record: dict[str, object] = {
-        "schema_id": "cano_evaluation_data_integrity_record_v1",
+        "schema_id": IDENTITY_METADATA_RECORD_SCHEMA,
         "status": "PASS",
         "data_root_resolved": str(data_root),
         "role_config_sha256": _sha256_file(role_config_path),
@@ -270,6 +277,22 @@ def create_data_integrity_verification_record(
         json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return record
+
+
+def validate_evaluation_data_identity_and_split_integrity(
+    root: Path, data_root: Path
+) -> dict[str, object]:
+    """Compatibility alias for identity-metadata and role-assignment verification."""
+
+    return validate_prepared_identity_metadata_and_role_assignment(root, data_root)
+
+
+def create_data_integrity_verification_record(
+    root: Path, data_root: Path, output_path: Path
+) -> dict[str, object]:
+    """Compatibility alias for :func:`create_identity_metadata_verification_record`."""
+
+    return create_identity_metadata_verification_record(root, data_root, output_path)
 
 
 def validate_source_archive_membership(root: Path, archive: Path) -> dict[str, object]:
@@ -311,21 +334,34 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--provider-archive", type=Path)
-    parser.add_argument("--write-data-integrity-record", type=Path)
+    record_group = parser.add_mutually_exclusive_group()
+    record_group.add_argument(
+        "--write-identity-metadata-record",
+        type=Path,
+        help="write the prepared identity-metadata and role-assignment record",
+    )
+    record_group.add_argument(
+        "--write-data-integrity-record",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
     result = validate_static_contract(args.root)
     if args.data_root is not None:
-        result["data_integrity_verification"] = (
-            validate_evaluation_data_identity_and_split_integrity(
+        result["identity_metadata_verification"] = (
+            validate_prepared_identity_metadata_and_role_assignment(
             args.root, args.data_root
             )
         )
-    if args.write_data_integrity_record is not None:
+    record_output = (
+        args.write_identity_metadata_record or args.write_data_integrity_record
+    )
+    if record_output is not None:
         if args.data_root is None:
-            parser.error("--write-data-integrity-record requires --data-root")
-        result["data_integrity_verification_record"] = (
-            create_data_integrity_verification_record(
-                args.root, args.data_root, args.write_data_integrity_record
+            parser.error("identity-metadata record output requires --data-root")
+        result["identity_metadata_verification_record"] = (
+            create_identity_metadata_verification_record(
+                args.root, args.data_root, record_output
             )
         )
     if args.provider_archive is not None:
@@ -338,6 +374,9 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "main",
+    "IDENTITY_METADATA_RECORD_SCHEMA",
+    "create_identity_metadata_verification_record",
+    "validate_prepared_identity_metadata_and_role_assignment",
     "create_data_integrity_verification_record",
     "validate_evaluation_data_identity_and_split_integrity",
     "validate_source_archive_membership",
