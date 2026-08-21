@@ -185,7 +185,7 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def evaluation_data_identity_fingerprint(
+def prepared_identity_metadata_fingerprint(
     data_root: Path, role_contracts: Mapping[str, RoleContract]
 ) -> dict[str, Any]:
     records: list[dict[str, str]] = []
@@ -196,7 +196,7 @@ def evaluation_data_identity_fingerprint(
         paths = sorted((data_root / contract.directory).glob("*.npz"))
         if len(paths) != contract.count:
             raise ValueError(
-                f"data-integrity verification found {len(paths)} {role} files; "
+                f"identity-metadata verification found {len(paths)} {role} files; "
                 f"expected {contract.count}"
             )
         for path in paths:
@@ -209,7 +209,7 @@ def evaluation_data_identity_fingerprint(
                 if any(key not in payload for key in required):
                     raise ValueError(
                         f"{path.name} lacks provider identity metadata required "
-                        "by the data-integrity verification record"
+                        "by the identity-metadata verification record"
                     )
                 event_id = str(payload["event_id"].item())
                 provider_name = str(payload["provider_event_name"].item())
@@ -243,7 +243,15 @@ def evaluation_data_identity_fingerprint(
     }
 
 
-def _verify_data_integrity_record(
+def evaluation_data_identity_fingerprint(
+    data_root: Path, role_contracts: Mapping[str, RoleContract]
+) -> dict[str, Any]:
+    """Compatibility alias for :func:`prepared_identity_metadata_fingerprint`."""
+
+    return prepared_identity_metadata_fingerprint(data_root, role_contracts)
+
+
+def _verify_identity_metadata_record(
     *,
     record_path: Path,
     data_root: Path,
@@ -258,16 +266,20 @@ def _verify_data_integrity_record(
         role: contract.count for role, contract in role_contracts.items()
     }
     try:
-        current = evaluation_data_identity_fingerprint(
+        current = prepared_identity_metadata_fingerprint(
             data_root.resolve(), role_contracts
         )
     except (OSError, TypeError, ValueError) as error:
         raise ValueError(
-            "data-integrity verification record does not bind the current data "
-            "root, role contract, and evaluation-data identities"
+            "identity-metadata verification record does not bind the current data "
+            "root, role contract, and prepared identity metadata"
         ) from error
     if (
-        record.get("schema_id") != "cano_evaluation_data_integrity_record_v1"
+        record.get("schema_id")
+        not in {
+            "cano_evaluation_identity_metadata_verification_record_v1",
+            "cano_evaluation_data_integrity_record_v1",
+        }
         or record.get("status") != "PASS"
         or Path(str(record.get("data_root_resolved", ""))).resolve()
         != data_root.resolve()
@@ -281,12 +293,12 @@ def _verify_data_integrity_record(
         or any(record.get(key) != value for key, value in current.items())
     ):
         raise ValueError(
-            "data-integrity verification record does not bind the current data "
-            "root, role contract, and evaluation-data identities"
+            "identity-metadata verification record does not bind the current data "
+            "root, role contract, and prepared identity metadata"
         )
     return {
         **current,
-        "data_integrity_verification_record_sha256": _sha256_file(record_path),
+        "identity_metadata_verification_record_sha256": _sha256_file(record_path),
         "role_config_sha256": _sha256_file(role_config_path),
         "provider_membership_sha256": _sha256_file(membership_path),
     }
@@ -299,16 +311,27 @@ def run_evidence_pipeline(
     normalization_path: Path,
     role_config_path: Path,
     calibration_config_path: Path,
-    data_integrity_record_path: Path,
     output_path: Path,
     device: str,
+    identity_metadata_record_path: Path | None = None,
+    data_integrity_record_path: Path | None = None,
     upstream_source: Path | None = None,
     query_chunk_size: int = 32768,
 ) -> dict[str, Any]:
+    if (identity_metadata_record_path is None) == (data_integrity_record_path is None):
+        raise ValueError(
+            "provide exactly one identity-metadata verification record path"
+        )
+    record_path = (
+        identity_metadata_record_path
+        if identity_metadata_record_path is not None
+        else data_integrity_record_path
+    )
+    assert record_path is not None
     role_config = _load_yaml(role_config_path)
     role_contracts = validate_role_contracts(role_config)
-    provider_binding = _verify_data_integrity_record(
-        record_path=data_integrity_record_path,
+    provider_binding = _verify_identity_metadata_record(
+        record_path=record_path,
         data_root=data_root,
         role_config_path=role_config_path,
         role_config=role_config,
@@ -490,8 +513,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--checkpoints", type=Path, nargs=3, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--normalization", type=Path, required=True)
-    parser.add_argument(
-        "--data-integrity-record", type=Path, required=True
+    record_group = parser.add_mutually_exclusive_group(required=True)
+    record_group.add_argument(
+        "--identity-metadata-record",
+        dest="identity_metadata_record",
+        type=Path,
+        help="prepared identity-metadata and role-assignment verification record",
+    )
+    record_group.add_argument(
+        "--data-integrity-record",
+        dest="identity_metadata_record",
+        type=Path,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--role-config",
@@ -516,7 +549,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         normalization_path=args.normalization,
         role_config_path=args.role_config,
         calibration_config_path=args.calibration_config,
-        data_integrity_record_path=args.data_integrity_record,
+        identity_metadata_record_path=args.identity_metadata_record,
         output_path=args.output,
         device=args.device,
         upstream_source=args.upstream_source,
@@ -529,6 +562,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 __all__ = [
     "PhysicalEvent",
     "RoleContract",
+    "prepared_identity_metadata_fingerprint",
     "evaluation_data_identity_fingerprint",
     "run_evidence_pipeline",
     "validate_role_contracts",

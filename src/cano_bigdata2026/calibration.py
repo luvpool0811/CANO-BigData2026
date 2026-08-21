@@ -209,20 +209,31 @@ def fit_event_balanced_crc(
     *,
     alpha: float,
     bound: float = 1.0,
+    empty_event_policy: str = "error",
 ) -> EventBalancedCRCThreshold:
     """Fit the smallest event-balanced residual threshold satisfying CRC.
 
-    Each input array contains normalized absolute residuals for one nonempty
-    calibration event on a population selected without target information.
-    Empty events are excluded symmetrically. This exposes the finite-sample
+    Each input array contains normalized absolute residuals for one calibration
+    event on a population selected without target information. The default
+    policy fails closed if a selected population is empty. Pass
+    ``empty_event_policy="exclude"`` only when the estimand has explicitly
+    been defined conditional on nonempty selected events and the same exclusion
+    is applied to calibration and evaluation. This exposes the finite-sample
     fitting path; the checked-in Table I values remain frozen summary records
     because provider fields are not redistributed.
     """
 
+    if empty_event_policy not in {"error", "exclude"}:
+        raise ValueError("empty_event_policy must be 'error' or 'exclude'")
     events: list[np.ndarray] = []
     for raw in event_residual_scores:
         values = np.asarray(raw, dtype=np.float64).reshape(-1)
         if values.size == 0:
+            if empty_event_policy == "error":
+                raise ValueError(
+                    "CRC selected population is empty; explicitly choose the "
+                    "conditional nonempty-event estimand to exclude it"
+                )
             continue
         if not np.isfinite(values).all() or np.any(values < 0.0):
             raise ValueError("CRC residual scores must be finite and nonnegative")
@@ -266,6 +277,7 @@ def fit_target_aligned_calibrator(
     *,
     threshold_m: float = C.OPERATIONAL_TARGET_THRESHOLD_M,
     alpha_levels: Iterable[float] = DEFAULT_ALPHA_LEVELS,
+    empty_event_policy: str = "error",
 ) -> TargetAlignedCalibrator:
     """Fit event-balanced normalized residual quantiles on calibration events."""
 
@@ -285,6 +297,7 @@ def fit_target_aligned_calibrator(
         scale,
         threshold_m=threshold_m,
         alpha_levels=alpha_levels,
+        empty_event_policy=empty_event_policy,
     )
 
 
@@ -295,8 +308,13 @@ def fit_target_aligned_calibrator_events(
     *,
     threshold_m: float = C.OPERATIONAL_TARGET_THRESHOLD_M,
     alpha_levels: Iterable[float] = DEFAULT_ALPHA_LEVELS,
+    empty_event_policy: str = "error",
 ) -> TargetAlignedCalibrator:
-    """Fit event-balanced residual thresholds from a streaming iterator."""
+    """Fit event-balanced residual thresholds from a streaming iterator.
+
+    Empty prediction-selected events fail closed by default. Explicit exclusion
+    is available only for an estimand defined conditional on nonempty events.
+    """
 
     mask = np.asarray(valid_mask, dtype=bool)
     scale = np.asarray(node_scale_h, dtype=np.float64)
@@ -304,6 +322,8 @@ def fit_target_aligned_calibrator_events(
         raise ValueError("node scale must be [24,H,W] on a nonempty 2-D mask")
     if not np.isfinite(scale[:, mask]).all() or np.any(scale[:, mask] <= 0):
         raise ValueError("node scale must be finite and positive on valid cells")
+    if empty_event_policy not in {"error", "exclude"}:
+        raise ValueError("empty_event_policy must be 'error' or 'exclude'")
     scores: list[np.ndarray] = []
     for event_prediction, event_truth in events:
         prediction = _single_h_field(event_prediction, label="prediction_h")
@@ -315,11 +335,18 @@ def fit_target_aligned_calibrator_events(
         )
         residual = np.abs(truth - prediction)
         values = residual[selected] / scale[selected]
+        if values.size == 0:
+            if empty_event_policy == "error":
+                raise ValueError(
+                    "calibration selected population is empty; explicitly choose "
+                    "the conditional nonempty-event estimand to exclude it"
+                )
+            continue
         if not np.isfinite(values).all():
             raise ValueError("calibration scores must be finite")
         scores.append(np.sort(values))
     if not scores:
-        raise ValueError("at least one calibration event is required")
+        raise ValueError("at least one nonempty calibration event is required")
     levels = tuple(float(alpha) for alpha in alpha_levels)
     if len(set(levels)) != len(levels) or any(not 0 < alpha < 1 for alpha in levels):
         raise ValueError("alpha levels must be unique and lie in (0,1)")

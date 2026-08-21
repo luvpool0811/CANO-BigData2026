@@ -42,7 +42,7 @@ p-value와 Holm 보정 p-value를 재현합니다. 네 번째 명령은 핵심 �
 contrast, 경험적/CRC 보정, 배포경계, 주장-근거, baseline 공정성 표와 Fig. 2/3
 형식 그림을 재생성합니다. 다섯 번째 명령은 checkpoint 선택 기준, HPO winner, 저장소에 포함된
 공개 역할 ledger, 재현 수준, WIS 해석 범위를 검사합니다. prepared data와 provider
-identity의 정확한 결속은 아래 `--data-root` 평가 데이터 정체성 및 분할 무결성
+identity의 정확한 결속은 아래 `--data-root` 정체성 metadata 및 역할 배정
 검증이 별도로 검사합니다.
 모든 명령은 데이터 다운로드나 GPU를 요구하지 않습니다.
 
@@ -96,8 +96,9 @@ UFC 운영 분석의 프로토콜 정렬 DNO는 Table II의 DNO-3 adaptation이 
 
 ### 공개 재현 범위
 
-- **통계 재계산:** Table II 평균과 CANO--baseline 사건쌍 비교 6개는 공개된
-  48개 사건행에서 다시 계산합니다.
+- **통계 재계산:** 표준 시스템별 Table II 비-CSI 지표 7개와 CANO--baseline
+  사건쌍 비교 6개만 공개된 48개 사건행에서 다시 계산합니다. CSI 4개 열은
+  집계값 재생성이며 사건행 기반 통계 재계산이 아닙니다.
 - **보관 요약 재생성:** 핵심 UFB/UFC/WB2 대비, Fig. 2 형식 그림, Table I
   Panel A/B와 Fig. 3 배포경계는 보관된 집계·보고 요약값을 검증하고 재생성하며,
   field-array bootstrap과 보정자 재적합은 다시 실행하지 않습니다.
@@ -174,9 +175,18 @@ population의 architecture-only 인과 비교가 아닙니다.
 유한표본 CRC는 `crc_maximum_empirical_event_risk`로 사건손실 보정 한계를
 계산하고 `fit_event_balanced_crc`로 사건균등 잔차 임계값을 적합할 수 있습니다.
 다만 provider field array를 재배포하지 않으므로 논문의 CRC 표는 명시적으로
-보관 요약 재생성 범위에 머뭅니다.
+보관 요약 재생성 범위에 머뭅니다. 보정 적합 API들은 선택 모집단이 빈 사건을 기본적으로
+즉시 거부하며, 비어 있지 않은 사건에 조건부인 추정대상을 명시하고 보정·평가에
+대칭 적용할 때만 `empty_event_policy="exclude"`를 명시적으로 허용합니다.
 
-논문 규모 실행에서는 평가 데이터 정체성 및 분할 무결성 검증을 별도의 필수
+CANO의 dense 추론 query lattice는 tensor의 높이와 너비로부터
+`align_corners=True` 규약에 따라 결정적으로 재구성됩니다. 입력의 grid Y/X 채널은
+여전히 encoder의 공간 feature로 사용됩니다. 체크포인트 호환성을 위해 유지하는
+`log_variance_head`와 `exceedance_head`는 공개된 276,821개 파라미터 상태에는
+포함되지만 표준 H/U/V 출력과 손실에는 사용되지 않으며, 보고 결과는 H/U/V head만
+사용합니다.
+
+논문 규모 실행에서는 준비된 정체성 metadata와 역할 배정 검증을 별도의 필수
 절차로 먼저 수행합니다. 이 검사는 `input`, `target`, `mask`를 열지 않고 `event_id`,
 `provider_event_name`, `provider_relative_path` metadata만 읽어 준비된 125개
 identity를 공개 85/15/13/12 역할 ledger와 정확히 대조합니다.
@@ -184,7 +194,7 @@ identity를 공개 85/15/13/12 역할 ledger와 정확히 대조합니다.
 ```bash
 python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i \
-  --write-data-integrity-record outputs/data-integrity-verification.json
+  --write-identity-metadata-record outputs/identity-metadata-verification.json
 ```
 
 이 검사가 PASS한 뒤, 3개 동결 checkpoint에서 전체 증거 사슬을 실행합니다.
@@ -196,14 +206,14 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
-  --data-integrity-record outputs/data-integrity-verification.json \
+  --identity-metadata-record outputs/identity-metadata-verification.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
-pipeline은 데이터 무결성 검증 기록이 현재 data-root 경로, 125개 identity metadata, 역할 설정과
+pipeline은 정체성 metadata 검증 기록이 현재 data-root 경로, 125개 identity metadata, 역할 설정과
 provider ledger에 결속되지 않으면 모델 평가 전에 실패합니다. 최종 evidence에는
 검증 기록, normalization, calibration 설정과 세 checkpoint의 hash도 기록됩니다.
 
@@ -217,7 +227,8 @@ provider ledger에 결속되지 않으면 모델 평가 전에 실패합니다. 
 
 각 NPZ에는 `berlin_i_role_membership.csv`의 `provider_event_name`과
 `provider_relative_path` metadata도 들어 있어야 합니다. 위 prepared-data
-데이터 무결성 검증이 이 metadata로 정확한 역할 배정을 확인합니다. 원본 provider ZIP이
+정체성 metadata 검증이 정확한 역할 배정을 확인합니다. 이는 field array checksum이나
+provider payload 내용의 독립 증명은 아닙니다. 원본 provider ZIP이
 있다면 payload를 열지 않고 central directory를 추가로 직접 대조할 수도 있습니다.
 
 ```bash

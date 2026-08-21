@@ -49,8 +49,8 @@ deployment-boundary, claim-to-evidence, and baseline-fairness tables plus the
 central-effect and RQ3/RQ4 figures.
 The fifth checks the checkpoint-selection metric, HPO winner calculation,
 the checked-in public role ledger, reproduction-level disclosure, and WIS
-claim scope. Exact evaluation-data identity and split integrity are verified by
-the separate required `--data-root` procedure documented below.
+claim scope. Exact prepared identity metadata and role assignment are verified
+by the separate required `--data-root` procedure documented below.
 None of these commands downloads a dataset or requires a GPU.
 
 ## Primary operational-reliability evidence
@@ -119,8 +119,10 @@ and random-seed roles are centralized in
 
 ### Public reproduction boundary
 
-- **Statistic recomputation:** Table II means and the six paired CANO--baseline
-  comparisons are recomputed from 48 public event rows.
+- **Statistic recomputation:** exactly seven non-CSI Table II metrics for each
+  standard system and the six paired CANO--baseline comparisons are recomputed
+  from 48 public event rows. The four CSI columns are aggregate regeneration,
+  not event-level statistic recomputation.
 - **Archived-summary regeneration:** the central UFB/UFC/WB2 contrasts,
   Fig. 2-style plot, Table I Panels A/B, and Fig. 3 deployment boundaries are
   validated and regenerated from archived aggregate reporting summaries; their
@@ -253,7 +255,18 @@ For finite-sample CRC, `crc_maximum_empirical_event_risk` exposes the bounded
 event-loss correction and `fit_event_balanced_crc` fits the corresponding
 event-balanced residual threshold. The checked-in CRC table remains an
 explicit archived-summary regeneration because provider field arrays are not
-redistributed.
+redistributed. The calibration fitting APIs fail closed on an empty selected event unless
+the caller explicitly chooses `empty_event_policy="exclude"`; that option is
+valid only for the documented estimand conditional on nonempty events and must
+be applied symmetrically to calibration and evaluation.
+
+For CANO dense inference, the query lattice is deterministically reconstructed
+from the tensor height and width with `align_corners=True`. The supplied grid
+Y/X channels remain encoder inputs; reconstructing the query lattice does not
+replace or discard those spatial input features. The checkpoint-compatible
+`log_variance_head` and `exceedance_head` parameters are retained in the
+reported 276,821-parameter state but are inactive in the standard H/U/V output
+and loss path; only the H/U/V heads produce the reported predictions.
 
 The training loss remains each architecture's native normalized MSE. All four
 public training configurations nevertheless select checkpoints by the same
@@ -262,9 +275,9 @@ RMSE across all development events, all 24 leads, and every valid cell. The
 criterion is recorded as `development_event_macro_physical_h_rmse` in each
 checkpoint and training summary.
 
-Evaluation-data identity and split integrity are verified as a separate,
+Prepared identity metadata and role assignment are verified as a separate,
 required procedure for a paper-scale run. It compares all 125 prepared
-identities with the public
+identity records with the public
 85/15/13/12 role ledger while opening only `event_id`,
 `provider_event_name`, and `provider_relative_path` metadata—not `input`,
 `target`, or `mask`:
@@ -272,7 +285,7 @@ identities with the public
 ```bash
 python scripts/validate_public_contract.py \
   --data-root /path/to/prepared/berlin-i \
-  --write-data-integrity-record outputs/data-integrity-verification.json
+  --write-identity-metadata-record outputs/identity-metadata-verification.json
 ```
 
 After this check passes, execute the full public evidence chain from three
@@ -285,14 +298,14 @@ python scripts/run_evidence_pipeline.py \
                 outputs/cano/seed-42/best.pt \
   --data-root /path/to/prepared/berlin-i \
   --normalization /path/to/prepared/berlin-i/normalization.json \
-  --data-integrity-record outputs/data-integrity-verification.json \
+  --identity-metadata-record outputs/identity-metadata-verification.json \
   --role-config configs/evaluation/berlin_i_roles.yaml \
   --calibration-config configs/calibration/target_aligned.yaml \
   --output outputs/cano/evidence.json \
   --device cuda
 ```
 
-The pipeline fails before model evaluation unless the data-integrity
+The pipeline fails before model evaluation unless the identity-metadata
 verification record binds the current
 data-root path, all 125 identity metadata records, the role configuration, and
 the provider ledger. The resulting evidence record also binds that verification record,
@@ -301,7 +314,7 @@ normalization, calibration configuration, and three checkpoint hashes.
 This command averages the three seed predictions in physical units, fits the
 node scale on 15 development events, fits calibration on 13 separate events,
 and evaluates 12 held-out events exactly once. The role contract also records
-85 training events. It revalidates the data-integrity record against current identity
+85 training events. It revalidates the identity-metadata record against current identity
 metadata before reading field arrays, then rejects duplicate event identities
 within or across development, calibration, and evaluation roles. The evidence
 record contains only public aliases, namespaced event-ID digests, and input
@@ -310,7 +323,9 @@ binding hashes. Dataset files remain provider-managed and are not bundled.
 Each NPZ must carry the `provider_event_name` and `provider_relative_path`
 metadata declared by
 [`berlin_i_role_membership.csv`](configs/evaluation/berlin_i_role_membership.csv).
-The data-integrity verification compares all 125 identities exactly. If the
+The identity-metadata verification compares all 125 identities exactly. It is
+not a field-array checksum or an independent proof of provider payload content.
+If the
 original provider ZIP is available, its central directory can additionally be
 checked directly—without opening payload members—with:
 

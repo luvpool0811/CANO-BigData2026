@@ -58,6 +58,16 @@ def test_reproduce_inference_outputs(tmp_path: Path) -> None:
     assert output_pdf.stat().st_size > 1_000
     assert output_png.stat().st_size > 10_000
 
+    second_pdf = tmp_path / "second-forest.pdf"
+    reproduce_inference(
+        event_csv=ROOT / "results/paper/event_level_results.csv",
+        output_csv=tmp_path / "second-paired.csv",
+        output_markdown=tmp_path / "second-paired.md",
+        output_figure_pdf=second_pdf,
+        output_figure_png=tmp_path / "second-forest.png",
+    )
+    assert output_pdf.read_bytes() == second_pdf.read_bytes()
+
 
 def test_reduction_transform_reverses_interval_bounds() -> None:
     rows = reduction_rows(

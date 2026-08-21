@@ -65,6 +65,41 @@ def test_operational_disclosures_regenerate(tmp_path: Path) -> None:
     ):
         assert (output / name).stat().st_size > 100
 
+    second_output = tmp_path / "generated-second"
+    reproduce(results_dir=root / "results/paper", output_dir=second_output)
+    assert (output / "deployment_boundaries.pdf").read_bytes() == (
+        second_output / "deployment_boundaries.pdf"
+    ).read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("claim_group", "field", "value"),
+    (
+        ("standard_point_metrics", "scope", "all Table II metrics are recomputed"),
+        ("standard_CSI", "statistics_recomputed", "true"),
+        ("paired_baseline_inference", "reproduction_level", "aggregate regeneration"),
+    ),
+)
+def test_reproducibility_scope_contract_is_fail_closed(
+    tmp_path: Path, claim_group: str, field: str, value: str
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    copied = tmp_path / "paper"
+    _copy_csvs(root / "results/paper", copied)
+    path = copied / "reproducibility_scope.csv"
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        rows = list(reader)
+        fields = reader.fieldnames
+    assert fields is not None
+    next(row for row in rows if row["claim_group"] == claim_group)[field] = value
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match=f"scope changed for {claim_group}"):
+        validate_operational_inputs(copied)
+
 
 def test_population_identity_tamper_is_rejected(tmp_path: Path) -> None:
     root = Path(__file__).resolve().parents[1]

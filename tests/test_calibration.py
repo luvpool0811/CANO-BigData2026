@@ -90,6 +90,35 @@ def test_streaming_fit_matches_stacked_fit() -> None:
     assert stacked == streamed
 
 
+def test_target_aligned_calibrator_empty_event_policy_is_fail_closed() -> None:
+    mask = np.ones((2, 2), dtype=bool)
+    scale = np.ones((24, 2, 2), dtype=np.float64)
+    empty_prediction = np.zeros((24, 2, 2), dtype=np.float64)
+    empty_truth = np.zeros_like(empty_prediction)
+    nonempty_prediction = np.ones_like(empty_prediction)
+    nonempty_truth = nonempty_prediction + 0.1
+    events = (
+        (nonempty_prediction, nonempty_truth),
+        (empty_prediction, empty_truth),
+    )
+    with np.testing.assert_raises_regex(ValueError, "selected population is empty"):
+        fit_target_aligned_calibrator_events(
+            events,
+            mask,
+            scale,
+            threshold_m=0.3,
+        )
+
+    fitted = fit_target_aligned_calibrator_events(
+        events,
+        mask,
+        scale,
+        threshold_m=0.3,
+        empty_event_policy="exclude",
+    )
+    assert fitted.n_calibration_events == 1
+
+
 def test_event_balanced_crc_exposes_finite_sample_correction() -> None:
     scores = tuple(
         np.asarray([0.1, 0.2 + 0.1 * index, 0.8 + 0.1 * index])
@@ -109,3 +138,23 @@ def test_event_balanced_crc_reports_uninformative_small_sample_fallback() -> Non
     assert np.isinf(fitted.q)
     assert fitted.empirical_event_risk is None
     assert crc_maximum_empirical_event_risk(1, 0.1) < 0.0
+
+
+def test_event_balanced_crc_empty_event_policy_is_fail_closed() -> None:
+    scores = [np.asarray([0.1, 0.2]), np.asarray([])]
+    with np.testing.assert_raises_regex(ValueError, "selected population is empty"):
+        fit_event_balanced_crc(scores, alpha=0.1)
+
+    fitted = fit_event_balanced_crc(
+        scores,
+        alpha=0.1,
+        empty_event_policy="exclude",
+    )
+    assert fitted.n_calibration_events == 1
+
+    with np.testing.assert_raises_regex(ValueError, "empty_event_policy"):
+        fit_event_balanced_crc(
+            [np.asarray([0.1, 0.2])],
+            alpha=0.1,
+            empty_event_policy="silently_drop",
+        )

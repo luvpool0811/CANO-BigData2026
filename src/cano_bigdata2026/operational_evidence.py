@@ -49,6 +49,40 @@ CRC_EMPTY_EVENT_POLICY = (
     "prediction-selected events"
 )
 
+REPRODUCIBILITY_SCOPE_CONTRACT = {
+    "standard_point_metrics": {
+        "public_evidence": "event_level_results.csv",
+        "reproduction_level": "event-summary recomputation",
+        "statistics_recomputed": "true",
+        "requires_provider_data_or_checkpoints": "false",
+        "scope": (
+            "seven non-CSI metrics (H-RMSE, NSE, wet RMSE, wet NSE, peak "
+            "error, ACE, and WIS) are recomputed for four standard systems "
+            "from 48 public event rows"
+        ),
+    },
+    "standard_CSI": {
+        "public_evidence": "main_results.csv",
+        "reproduction_level": "aggregate regeneration",
+        "statistics_recomputed": "false",
+        "requires_provider_data_or_checkpoints": "false",
+        "scope": (
+            "four CSI thresholds are validated and regenerated from reported "
+            "aggregate rows; event-level CSI is not publicly recomputed"
+        ),
+    },
+    "paired_baseline_inference": {
+        "public_evidence": "event_level_results.csv",
+        "reproduction_level": "paired-event recomputation",
+        "statistics_recomputed": "true",
+        "requires_provider_data_or_checkpoints": "false",
+        "scope": (
+            "six relative effects, bootstrap intervals, exact sign-flip tests, "
+            "and Holm adjustments are recomputed from paired public event rows"
+        ),
+    },
+}
+
 
 def _validate_rq1_specification(
     payload: Mapping[str, list[dict[str, str]]],
@@ -299,6 +333,17 @@ def validate_operational_inputs(results_dir: Path) -> dict[str, list[dict[str, s
         for row in scope_rows
     ):
         raise ValueError("reproducibility scope booleans are invalid")
+    scope_by_claim = {row["claim_group"]: row for row in scope_rows}
+    if len(scope_by_claim) != len(scope_rows):
+        raise ValueError("reproducibility scope claim groups must be unique")
+    for claim_group, expected in REPRODUCIBILITY_SCOPE_CONTRACT.items():
+        if scope_by_claim.get(claim_group) != {
+            "claim_group": claim_group,
+            **expected,
+        }:
+            raise ValueError(
+                f"reproducibility scope changed for {claim_group}"
+            )
     _validate_rq1_specification(payload)
     return payload
 
@@ -451,10 +496,16 @@ def _deployment_plot(
     figure.suptitle("Deployment boundaries induced by budget and warning loss", fontsize=12)
     output_dir.mkdir(parents=True, exist_ok=True)
     for suffix, dpi in (("png", 300), ("pdf", 300)):
+        metadata = (
+            {"CreationDate": None, "ModDate": None}
+            if suffix == "pdf"
+            else None
+        )
         figure.savefig(
             output_dir / f"deployment_boundaries.{suffix}",
             dpi=dpi,
             bbox_inches="tight",
+            metadata=metadata,
         )
     plt.close(figure)
 
